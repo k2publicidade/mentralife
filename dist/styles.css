@@ -94,3 +94,8 @@
 @media(max-width:1200px){.home-moments .moment-today-card{grid-template-columns:36px minmax(0,1fr)}.moment-today-card .moment-today-cta{grid-column:2;justify-self:start}.moment-today-card .round-icon{align-self:start}}
 @media(max-width:760px){.home-moments .moment-today-card{gap:11px 12px;padding:20px;margin-bottom:25px}.moment-today-copy h2{font-size:23px}.moment-today-copy p{font-size:12px}.moment-today-card .moment-today-cta{grid-column:1/-1;width:100%;justify-self:stretch;font-size:13px}.moment-today-card .round-icon{width:34px;height:34px}}
 @media(max-width:390px){.home-moments .moment-today-card{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:18px 16px}.moment-today-copy h2{font-size:22px}.moment-today-card .round-icon{width:28px;height:28px}.moment-today-card .round-icon>svg{width:16px;height:16px}}
+
+.message-answer{overflow-wrap:anywhere}
+.message-answer > * + *{margin-top:.7em}
+.message-answer ul,.message-answer ol{padding-inline-start:1.4em;margin-bottom:0}
+.message-answer li + li{margin-top:.3em}
