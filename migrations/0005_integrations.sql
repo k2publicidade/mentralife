@@ -1,0 +1,14 @@
+CREATE TABLE whatsapp_link_codes(code_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
+CREATE TABLE whatsapp_links(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,phone TEXT NOT NULL UNIQUE,linked_at INTEGER NOT NULL);
+CREATE TABLE integration_inbox(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,source TEXT NOT NULL,kind TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,error TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+CREATE INDEX integration_inbox_jobs ON integration_inbox(status,next_attempt);
+CREATE INDEX integration_inbox_owner ON integration_inbox(user_id,status,created_at);
+CREATE TABLE audio_requests(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,audio_hash TEXT NOT NULL,status TEXT NOT NULL,text TEXT,attempts INTEGER NOT NULL DEFAULT 1,lease_until INTEGER NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,audio_hash));
+CREATE TABLE reminder_settings(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,enabled INTEGER NOT NULL DEFAULT 0,settings TEXT NOT NULL,last_reconciled INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE push_subscriptions(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,endpoint TEXT NOT NULL UNIQUE,p256dh TEXT NOT NULL,auth TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE INDEX push_owner ON push_subscriptions(user_id);
+CREATE TABLE reminder_jobs(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,due_at INTEGER NOT NULL,url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL);
+CREATE INDEX reminders_due ON reminder_jobs(status,due_at);
+CREATE TABLE push_deliveries(job_id TEXT NOT NULL REFERENCES reminder_jobs(id) ON DELETE CASCADE,subscription_id TEXT NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,last_status INTEGER,PRIMARY KEY(job_id,subscription_id));
+CREATE INDEX push_pending ON push_deliveries(status,next_attempt);
+CREATE TABLE transcription_usage(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,day TEXT NOT NULL,requests INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,day));

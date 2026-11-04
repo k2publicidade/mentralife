@@ -1,0 +1,12 @@
+.git
+.wrangler
+.mentra-private
+.sites-runtime
+.vercel-public
+.dev.vars*
+.env*
+qa
+node_modules
+dist/downloads
+dist/handoff
+.openai

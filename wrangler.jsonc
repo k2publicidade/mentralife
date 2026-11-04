@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mentra-life",
+  "main": "server/worker.mjs",
+  "compatibility_date": "2026-10-28",
+  "triggers": { "crons": ["* * * * *"] },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*", "/admin"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "mentra-life", "database_id": "local-mentra-life", "migrations_dir": "migrations" }],
+  "vars": { "DEEPSEEK_MODEL": "deepseek-flash" }
+}

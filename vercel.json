@@ -1,0 +1,36 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": ".vercel-public",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
+        "Vercel-CDN-Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "X-Frame-Options": "DENY",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      },
+      "continue": true
+    },
+    {"src": "/(?:downloads|handoff)(?:/.*)?", "status": 404},
+    {"src": "/(?:share|calendar-callback)(?:\\.html)?", "headers": {"X-Robots-Tag": "noindex, nofollow, noarchive"}, "continue": true},
+    {
+      "src": "/api/(.*)",
+      "dest": "${MENTRA_WORKER_ORIGIN}/api/$1",
+      "env": ["MENTRA_WORKER_ORIGIN"],
+      "headers": {"x-vercel-enable-rewrite-caching": "0"},
+      "transforms": [{"type": "request.headers", "op": "set", "target": {"key": "x-mentra-origin-secret"}, "args": "$VERCEL_ORIGIN_SECRET", "env": ["VERCEL_ORIGIN_SECRET"]}]
+    },
+    {"src": "/admin", "dest": "/admin.html"},
+    {"src": "/share", "dest": "/share.html"},
+    {"src": "/calendar-callback", "dest": "/calendar-callback.html"},
+    {"src": "/", "dest": "/index.html"},
+    {"handle": "filesystem"},
+    {"src": "/.*", "status": 404}
+  ]
+}

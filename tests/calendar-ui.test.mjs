@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createCalendarConnectUI} from '../dist/calendar-connect-ui.mjs';
+const tick=()=>new Promise(r=>setImmediate(r));
+function fixture(t){
+ const old={document:globalThis.document,FormData:globalThis.FormData};t.after(()=>{for(const [k,v]of Object.entries(old))if(v===undefined)delete globalThis[k];else globalThis[k]=v;});
+ const error={textContent:''};globalThis.document={querySelector:()=>error};globalThis.FormData=class{constructor(form){this.value=form.values;}[Symbol.iterator](){return Object.entries(this.value)[Symbol.iterator]();}};
+ let html='',saves=0,flush=true,resolve,connected=true,ui;const state={events:[]},calls=[];
+ const proposal={events:[{title:'Privado <script>',sourceKey:'a'.repeat(64),date:'2026-10-29',time:'10:00',duration:30,timeZone:'UTC'}],skipped:[],generatedAt:Date.now(),connectionId:'conn',calendarName:'Agenda <script>'};
+ ui=createCalendarConnectUI({getState:()=>state,flush:async()=>flush,api:async()=>({connected,configured:true,connectionId:'conn'}),send:async(path)=>{calls.push(path);if(path==='calendar/preview'){if(resolve)await new Promise(r=>resolve(r));return proposal;}return {ok:true,revoked:true};},modal:(_,body)=>html=body,closeModal:()=>ui.cancelPending(),save:()=>{saves++;},render:()=>{},toast:()=>{}});
+ return {ui,state,calls,error,html:()=>html,saves:()=>saves,disconnect:()=>connected=false,block:()=>flush=false,delay:fn=>resolve=fn,click:async action=>{ui.handleClick('gcal-'+action);await tick();},submit:async()=>{ui.handleSubmit({id:'gcal-preview-form',values:{from:'2026-10-01',until:'2026-10-31'},checkValidity:()=>true});await tick();}};
+}
+test('revisão escapa título e cancelamento não importa nem salva',async t=>{const c=fixture(t);await c.ui.open();await c.submit();assert.match(c.html(),/Agenda &lt;script&gt;/);assert.match(c.html(),/Privado &lt;script&gt;/);assert.equal(c.state.events.length,0);c.ui.cancelPending();await c.click('confirm');assert.equal(c.saves(),0);});
+test('confirmação importa uma vez e nova consulta não duplica',async t=>{const c=fixture(t);await c.ui.open();await c.submit();await c.click('confirm');await c.click('confirm');assert.equal(c.saves(),1);assert.equal(c.state.events.length,1);await c.ui.open();await c.submit();assert.match(c.html(),/Nenhuma alteração necessária/);});
+test('agenda alterada ou conexão removida depois de revisar bloqueiam confirmação',async t=>{const c=fixture(t);await c.ui.open();await c.submit();c.state.events.push({id:'manual'});await c.click('confirm');assert.match(c.error.textContent,/mudou/);assert.equal(c.saves(),0);await c.ui.open();await c.submit();c.disconnect();await c.click('confirm');assert.match(c.error.textContent,/conexão mudou/);assert.equal(c.saves(),0);});
+test('resposta tardia após fechar e sincronização bloqueada não criam importação',async t=>{const c=fixture(t);await c.ui.open();let finish;c.delay(r=>finish=r);await c.submit();c.ui.cancelPending();finish();await tick();await c.click('confirm');assert.equal(c.saves(),0);c.delay(null);await c.ui.open();c.block();await c.submit();assert.match(c.error.textContent,/sincronização/);assert.equal(c.calls.length,1);});
+test('cancelar revisão de desconexão não envia revogação',async t=>{const c=fixture(t);await c.ui.open();await c.click('disconnect-review');c.ui.cancelPending();await c.click('disconnect');assert.equal(c.calls.length,0);});

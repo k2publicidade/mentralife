@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Mentra Life",
+  "short_name": "Mentra",
+  "description": "Sua organização pessoal, com agenda, documentos e lembretes.",
+  "lang": "pt-BR",
+  "start_url": "/#/hoje",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f1",
+  "theme_color": "#173e32",
+  "icons": [
+    {"src": "/assets/mentra-logo-original.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any"}
+  ]
+}
