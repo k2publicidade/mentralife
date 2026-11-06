@@ -36,9 +36,12 @@ def main():
         raise RuntimeError('O bundle compilado não corresponde ao aplicativo configurado.')
     version, device = choose_device(json.loads(command('xcrun', 'simctl', 'list', 'devices', 'available', '--json'))['devices'])
     udid = device['udid']
+    print(f'Preparando {device["name"]}, iOS {version[0]}.{version[1]} ({device["state"]}).', flush=True)
     if device['state'] != 'Booted':
         command('xcrun', 'simctl', 'boot', udid)
-    command('xcrun', 'simctl', 'bootstatus', udid, '-b', timeout=180)
+    # First boot performs simulator data migration on a fresh hosted runner.
+    # Stream progress and allow enough time; a boot failure must remain a failure.
+    subprocess.run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], check=True, timeout=600)
     command('xcrun', 'simctl', 'install', udid, str(application))
     launch = command('xcrun', 'simctl', 'launch', '--terminate-running-process', udid, identifier)
     match = re.search(r':\s*(\d+)\s*$', launch)
@@ -56,3 +59,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
