@@ -1,0 +1,31 @@
+name: iOS mobile validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/mobile-ios-validation-20261106]
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Prepare application
+        run: |
+          npm ci
+          npm run build:mobile
+          npx cap sync ios
+      - name: Compile unsigned simulator application
+        run: |
+          xcodebuild -version
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .mentra-private/ios-ci-build CODE_SIGNING_ALLOWED=NO build | tee ios-build.log
+      - name: Verify simulator launch
+        run: python3 scripts/smoke-ios-simulator.py

@@ -1,10 +1,11 @@
 import {parseAccountBackup} from './backup.mjs';
 import {escapeHtml as esc} from './core.mjs';
 import {compareStates} from './sync-review.mjs';
+import {saveFile} from './file-save.mjs';
 export async function installSyncUI({sync,store,platform,api,send}){
  const toolbar=document.createElement('div');toolbar.className='platform-toolbar';toolbar.innerHTML='<span></span><a href="#/planos">Minha assinatura</a><button type="button" data-sync="logout">Sair</button><small class="sync-status" role="status">Conta conectada</small>';
  toolbar.querySelector('span').textContent=platform.user.name;
- if(platform.user.role==='admin'){const link=document.createElement('a');link.href='/admin.html';link.textContent='Administração';toolbar.append(link);}
+ if(platform.user.role==='admin'){const link=document.createElement('a');link.href=globalThis.mentraNative?'/admin.html':'/admin';link.textContent='Administração';toolbar.append(link);}
  const panel=document.createElement('section');panel.className='sync-panel';panel.setAttribute('aria-label','Recuperação de alterações');panel.hidden=true;document.body.prepend(panel);document.body.prepend(toolbar);document.body.classList.add('has-platform-toolbar');
  const measure=()=>document.documentElement.style.setProperty('--platform-toolbar-height',toolbar.offsetHeight+'px');measure();if(globalThis.ResizeObserver)new ResizeObserver(measure).observe(toolbar);
  let importGeneration=0,lastPanelView=null;
@@ -26,7 +27,7 @@ export async function installSyncUI({sync,store,platform,api,send}){
   const view=review||(status.blocked?'blocked:'+status.phase:notice?'notice:'+notice:forceRecovery?'recovery':records.length?'drafts':'idle');
   if(view!==lastPanelView){lastPanelView=view;const title=panel.querySelector('h2');if(title){title.tabIndex=-1;title.focus?.({preventScroll:true});title.scrollIntoView?.({block:'start',behavior:'instant'});}}
  }
- function exportData(data,label='recuperacao',baseRevision=status.revision){const url=URL.createObjectURL(new Blob([JSON.stringify({format:'mentra-life-recovery-v1',ownerId:platform.user.id,baseRevision,data},null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=`mentra-${label}-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ async function exportData(data,label='recuperacao',baseRevision=status.revision){await saveFile(`mentra-${label}-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({format:'mentra-life-recovery-v1',ownerId:platform.user.id,baseRevision,data},null,2),'application/json');}
  async function refresh(){records=await store.list(platform.user.id);const own=sync.status().localCopy?.key;records=records.filter(r=>r.key!==own);}
  async function startReview(mode){const local=structuredClone(snapshot()),remote=await api('state');review={mode,local,localJSON:JSON.stringify(local),remote};notice='';draw();}
  async function runAfterSync(action){if(operationBusy)return false;operationBusy=true;draw();try{if(!await sync.flush()){notice='Resolva a gravação pendente antes de continuar.';return false;}await action();return true;}finally{operationBusy=false;draw();}}
@@ -34,13 +35,14 @@ export async function installSyncUI({sync,store,platform,api,send}){
  window.addEventListener('beforeunload',event=>{if(!allowLeave&&sync.hasPending()){event.preventDefault();event.returnValue='';}});
  window.addEventListener('online',()=>{if(status.phase==='error')notice='A conexão voltou. Use Tentar salvar novamente para reenviar sua cópia.';draw();});
  async function click(event){const target=event.target.closest('[data-sync]');if(!target)return;const action=target.dataset.sync;if(action==='reauth'){allowLeave=status.localCopySaved;return;}event.preventDefault();if(operationBusy)return;importGeneration++;try{
+  if(action.startsWith('export-')){operationBusy=true;draw();}
   if(action==='logout'){await runAfterSync(async()=>{await window.mentraBeforeLogout?.();await send('logout',{});allowLeave=true;location.reload();});return;}
   if(action==='dismiss'){notice='';draw();return;}
   if(action==='ignore'){forceRecovery=false;notice='Cópias anteriores preservadas. Você está usando a versão atual do servidor.';draw();return;}
   if(action==='cancel-review'){if(review?.mode==='import')forceRecovery=false;review=null;notice='';draw();return;}
-  if(action==='export-local'){exportData(review?.local||snapshot(),'recuperacao',review?.record?.baseRevision??status.revision);return;}
-  if(action==='export-server'){exportData(review?.remote.data||(await api('state')).data,'servidor');return;}
-  if(action==='export-draft'){const record=records.find(r=>r.key===target.dataset.key);if(record)exportData(record.data,'copia-local',record.baseRevision);return;}
+  if(action==='export-local'){await exportData(review?.local||snapshot(),'recuperacao',review?.record?.baseRevision??status.revision);return;}
+  if(action==='export-server'){await exportData(review?.remote.data||(await api('state')).data,'servidor');return;}
+  if(action==='export-draft'){const record=records.find(r=>r.key===target.dataset.key);if(record)await exportData(record.data,'copia-local',record.baseRevision);return;}
   if(action==='review-server'||action==='review-local'){await startReview(action==='review-server'?'server':'local');return;}
   if(action==='retry'){operationBusy=true;draw();await sync.retry(snapshot());forceRecovery=false;await refresh();return;}
   if(action==='recover'){const selected=records.find(r=>r.key===target.dataset.key);if(!selected)return;const current=(await store.list(platform.user.id)).find(r=>r.key===selected.key);if(!current){await refresh();notice='Essa cópia já foi confirmada ou removida.';return;}if(current.operationId!==selected.operationId){await refresh();notice='A cópia mudou em outra aba. Revise a opção novamente.';return;}operationBusy=true;draw();window.mentraReplaceState(current.data);await sync.adopt(current);forceRecovery=false;await refresh();return;}

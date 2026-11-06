@@ -27,7 +27,7 @@ export function createDocumentSharesUI(ctx){
    const selection=current;
    if(!selection.attempt){const bytes=crypto.getRandomValues(new Uint8Array(32));selection.attempt={requestId:crypto.randomUUID(),clientToken:Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('')};}
    void run(async valid=>{if(!await ctx.flush())throw Error('Resolva a sincronização antes de criar o acesso.');const p=selection.preview,created=await send('document-shares',{documentId:p.document.id,recipientId:p.recipient.id,signature:p.signature,revision:p.revision,hours:p.hours,confirmed:true,...selection.attempt});if(!valid())return;
-    const link=new URL(created.url);if(link.origin!==location.origin||link.pathname!=='/share')throw Error('Endereço de compartilhamento inválido.');current={kind:'created',documentId:selection.documentId,link:created.url};
+    const link=new URL(created.url);if(link.origin!==(globalThis.mentraPublicOrigin||location.origin)||link.pathname!=='/share')throw Error('Endereço de compartilhamento inválido.');current={kind:'created',documentId:selection.documentId,link:created.url};
     show(`<p>Acesso criado para <strong>${esc(created.recipient.name)}</strong> (${esc(created.recipient.email)}).</p><p class="form-help">Expira em ${esc(stamp(created.expiresAt))}. A pessoa precisa entrar na conta destinatária para baixar.</p><label>Link privado<input class="share-link" readonly value="${esc(created.url)}" aria-label="Link privado"></label><div class="modal-actions">${action('Copiar link','copy','primary')}${action('Ver acessos','back')}</div><p class="form-help">O endereço fica disponível nesta janela. Se perdê-lo, revogue o acesso e crie outro link.</p>`);
    });return true;
   }
