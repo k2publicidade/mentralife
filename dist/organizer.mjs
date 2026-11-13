@@ -5,10 +5,12 @@ export function addDays(date,days){if(!validCalendarDate(date)||!Number.isIntege
 export function moveMonth(date,offset){if(!validCalendarDate(date)||!Number.isInteger(offset))throw Error('Data inválida.');const d=new Date(date+'T12:00:00Z'),day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+offset);const end=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,end));return d.toISOString().slice(0,10);}
 export function monthCells(date){if(!validCalendarDate(date))throw Error('Data inválida.');const first=date.slice(0,8)+'01',weekday=(new Date(first+'T12:00:00Z').getUTCDay()+6)%7,start=addDays(first,-weekday);return Array.from({length:42},(_,i)=>{const day=addDays(start,i);return {date:day,day:Number(day.slice(8)),currentMonth:day.slice(0,7)===date.slice(0,7)};});}
 export function monthLabel(date){return new Date(date+'T12:00:00Z').toLocaleDateString('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'});}
+export const TASK_CATEGORIES=Object.freeze(['Pessoal','Casa','Trabalho','Dinheiro','Projetos','Saúde']);
 export function taskDraft(raw,existing={}){
  const title=typeof raw.title==='string'?raw.title.trim():'',category=typeof raw.category==='string'?raw.category:'Pessoal',dueDate=raw.dueDate||'';
- if(!title||title.length>100)throw Error('Informe uma tarefa com até 100 caracteres.');
- if(!['Pessoal','Dinheiro','Projetos','Trabalho'].includes(category))throw Error('Escolha uma área válida.');
+ if(!title)throw Error('Escreva o que você quer fazer.');
+ if(title.length>100)throw Error('Use até 100 caracteres no nome da tarefa.');
+ if(!TASK_CATEGORIES.includes(category))throw Error('Escolha uma área válida.');
  if(dueDate&&!validCalendarDate(dueDate))throw Error('Informe um prazo válido.');
  return {...existing,title,category,dueDate,done:existing.done===true,priority:existing.priority===true&&!existing.done};
 }
@@ -16,7 +18,8 @@ export function setTaskPriority(tasks,id){const target=tasks.find(t=>t.id===id);
 export function orderedTasks(tasks){return tasks.map((task,index)=>({task,index})).sort((a,b)=>Number(Boolean(a.task.done))-Number(Boolean(b.task.done))||Number(Boolean(b.task.priority))-Number(Boolean(a.task.priority))||((a.task.dueDate||'9999').localeCompare(b.task.dueDate||'9999'))||a.index-b.index).map(x=>x.task);}
 export function eventDraft(raw,existing={},timeZone='America/Sao_Paulo'){
  const title=typeof raw.title==='string'?raw.title.trim():'',date=raw.date,time=raw.time,duration=Number(raw.duration);
- if(!title||title.length>100)throw Error('Informe o nome do compromisso com até 100 caracteres.');
+ if(!title)throw Error('Informe o nome do compromisso.');
+ if(title.length>100)throw Error('Use até 100 caracteres no nome do compromisso.');
  if(!validCalendarDate(date))throw Error('Informe uma data válida.');
  if(typeof time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))throw Error('Informe o horário do compromisso.');
  if(!Number.isInteger(duration)||duration<1||duration>1440)throw Error('Informe uma duração entre 1 e 1440 minutos.');

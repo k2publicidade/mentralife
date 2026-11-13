@@ -1,13 +1,13 @@
 export const PLAN_IDS = ['essencial','plus','premium'];
 export const DEFAULT_PLANS = [
- {id:'essencial',name:'Essencial',monthlyRequests:100,priceCents:null,currency:'BRL',description:'Sua rotina, documentos e finanças em um só lugar.'},
- {id:'plus',name:'Plus',monthlyRequests:500,priceCents:null,currency:'BRL',description:'Mais espaço para conversar, organizar e colocar ideias em prática.'},
- {id:'premium',name:'Premium',monthlyRequests:2000,priceCents:null,currency:'BRL',description:'Para quem usa a Mentra intensamente no dia a dia.'}
+ {id:'essencial',name:'Mentra Basic',monthlyRequests:100,priceCents:2700,currency:'BRL',description:'Sua rotina, documentos e finanças em um só lugar.'},
+ {id:'plus',name:'Mentra Advanced',monthlyRequests:500,priceCents:4700,currency:'BRL',description:'Mais espaço para conversar, organizar e colocar ideias em prática.'},
+ {id:'premium',name:'Mentra Delux',monthlyRequests:2000,priceCents:9700,currency:'BRL',description:'Para quem usa a Mentra intensamente no dia a dia.'}
 ];
 export function validateCatalog(input){
  if(!Array.isArray(input)||input.length!==PLAN_IDS.length)throw Error('Informe os três planos.');
  return PLAN_IDS.map(id=>{
-  const rows=input.filter(p=>p?.id===id);if(rows.length!==1)throw Error('Os planos Essencial, Plus e Premium precisam aparecer uma única vez.');
+  const rows=input.filter(p=>p?.id===id);if(rows.length!==1)throw Error('Cada um dos três planos precisa aparecer uma única vez.');
   const p=rows[0],name=typeof p.name==='string'?p.name.trim():'',description=typeof p.description==='string'?p.description.trim():'';
   if(!name||name.length>60||!description||description.length>240)throw Error('Cada plano precisa de nome (até 60 caracteres) e descrição (até 240).');
   if(!Number.isInteger(p.monthlyRequests)||p.monthlyRequests<1||p.monthlyRequests>1000000)throw Error('O limite mensal deve ser um inteiro entre 1 e 1.000.000.');

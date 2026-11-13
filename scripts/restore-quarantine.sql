@@ -7,6 +7,8 @@ DELETE FROM calendar_connections;
 UPDATE document_shares SET revoked_at=COALESCE(revoked_at,CAST(strftime('%s','now') AS INTEGER)*1000);
 DELETE FROM push_deliveries;
 DELETE FROM push_subscriptions;
+DELETE FROM native_push_deliveries;
+DELETE FROM native_push_devices;
 UPDATE reminder_settings SET enabled=0,last_reconciled=0;
 UPDATE reminder_jobs SET status='cancelled' WHERE status='pending';
 DELETE FROM whatsapp_link_codes;

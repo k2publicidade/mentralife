@@ -14,6 +14,25 @@ function setup(t){
  const platform={user,data:initial},api=async()=>({data:structuredClone(server),revision:1});
  return {async start(){ui=await installSyncUI({sync,store,platform,api,send:async()=>{}});},sync,app,initial,platform,current:()=>current,server:()=>server,calls:()=>calls,setFailure:v=>fail=v,uploadFile:(file,input={})=>handlers.change({target:Object.assign(input,{value:'backup.json',matches:()=>true,files:[file]})}),upload:async(data,ownerId=user.id)=>{const raw=JSON.stringify({format:'mentra-life-account-v1',ownerId,data}),input={value:'backup.json',matches:()=>true,files:[{size:raw.length,text:async()=>raw}]};await handlers.change({target:input});},click:async action=>nodes[1].events.click({preventDefault(){},target:{closest:()=>({dataset:{sync:action}})}}),focuses:()=>focuses,scrolls:()=>scrolls,update:()=>ui.update(sync.status()),panel:()=>nodes[1].innerHTML};
 }
+test('cópia de recuperação usa compartilhamento nativo e preserva dono, revisão e conteúdo',async t=>{
+ const previous=globalThis.mentraNativeShare;let exported;
+ t.after(()=>{if(previous===undefined)delete globalThis.mentraNativeShare;else globalThis.mentraNativeShare=previous;});
+ globalThis.mentraNativeShare=async(blob,name)=>{exported={body:JSON.parse(await blob.text()),name,type:blob.type};};
+ const c=setup(t);await c.start();await c.click('export-local');
+ assert.equal(exported.body.ownerId,c.platform.user.id);assert.equal(exported.body.baseRevision,1);assert.deepEqual(exported.body.data,c.current());assert.equal(exported.type,'application/json');assert.match(exported.name,/^mentra-recuperacao-.*\.json$/);assert.equal(c.calls(),0);
+});
+test('falha no compartilhamento da recuperação mantém cópia e mostra erro sem alterar servidor',async t=>{
+ const previous=globalThis.mentraNativeShare;
+ t.after(()=>{if(previous===undefined)delete globalThis.mentraNativeShare;else globalThis.mentraNativeShare=previous;});
+ globalThis.mentraNativeShare=async()=>{throw Error('Não foi possível salvar o arquivo.');};
+ const c=setup(t);await c.start();await c.click('export-local');assert.match(c.panel(),/Não foi possível salvar/);assert.deepEqual(c.current(),c.initial);assert.equal(c.calls(),0);
+});
+test('toques repetidos não abrem dois compartilhamentos da cópia em paralelo',async t=>{
+ const previous=globalThis.mentraNativeShare;let shares=0,finish;
+ t.after(()=>{if(previous===undefined)delete globalThis.mentraNativeShare;else globalThis.mentraNativeShare=previous;});
+ globalThis.mentraNativeShare=async()=>{shares++;await new Promise(resolve=>finish=resolve);};
+ const c=setup(t);await c.start();const pending=c.click('export-local');await c.click('export-local');assert.equal(shares,1);assert.equal(c.app.inert,true);finish();await pending;assert.equal(c.app.inert,false);assert.equal(c.calls(),0);
+});
 test('importação: revisar/cancelar preserva estado e arquivo de outra conta não grava',async t=>{const c=setup(t);await c.start();const imported=structuredClone(c.initial);imported.profile.goal='Objetivo importado';await c.upload(imported);assert.equal(c.app.inert,true);assert.deepEqual(c.current(),c.initial);assert.match(c.panel(),/Revisar restauração/);await c.click('cancel-review');assert.equal(c.app.inert,false);assert.deepEqual(c.current(),c.initial);await c.upload(imported,'other-user');assert.match(c.panel(),/mesma conta/);assert.equal(c.calls(),0);});
 test('importação: falha após confirmar mantém conteúdo importado para reenvio, sem trocar pela versão antiga',async t=>{const c=setup(t);await c.start();const imported=structuredClone(c.initial);imported.profile.goal='Conteúdo escolhido na restauração';await c.upload(imported);c.setFailure(true);await c.click('confirm-review');assert.equal(c.sync.status().blocked,true);assert.deepEqual(c.current(),imported);assert.deepEqual(c.sync.status().localCopy.data,imported);assert.deepEqual(c.server(),c.initial);c.setFailure(false);await c.click('retry');assert.equal(c.sync.hasPending(),false);assert.deepEqual(c.server(),imported);assert.equal(c.calls(),2);});
 test('importação: leitura antiga que termina depois não substitui o arquivo mais recente',async t=>{

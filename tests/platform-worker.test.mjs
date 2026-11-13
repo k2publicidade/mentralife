@@ -3,7 +3,60 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import worker from '../server/worker.mjs';
-function database(){const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../migrations/0001_platform.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0002_recovery.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0003_state_chunks.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0004_product_settings.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0005_integrations.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0006_whatsapp_receipts.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0007_audio_claims.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0008_document_shares.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0009_calendar.sql',import.meta.url),'utf8'));return {sql,prepare(text){let args=[];return {bind(...values){args=values;return this;},async first(){return sql.prepare(text).get(...args)||null;},async all(){return {results:sql.prepare(text).all(...args)};},async run(){if(/RETURNING/i.test(text))return {results:sql.prepare(text).all(...args)};const r=sql.prepare(text).run(...args);return {meta:{changes:Number(r.changes)}};}};},async batch(statements){sql.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}}};}
+function database(){const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../migrations/0001_platform.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0002_recovery.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0003_state_chunks.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0004_product_settings.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0005_integrations.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0006_whatsapp_receipts.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0007_audio_claims.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0008_document_shares.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0009_calendar.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0010_native_push.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_ai_requests.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0012_picpay.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0013_account_indexes_feedback.sql',import.meta.url),'utf8'));return {sql,prepare(text){let args=[];return {bind(...values){args=values;return this;},async first(){return sql.prepare(text).get(...args)||null;},async all(){return {results:sql.prepare(text).all(...args)};},async run(){if(/RETURNING/i.test(text))return {results:sql.prepare(text).all(...args)};const r=sql.prepare(text).run(...args);return {meta:{changes:Number(r.changes)}};}};},async batch(statements){sql.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}}};}
+
+for(const [plan,amount] of [['essencial',2700],['plus',4700],['premium',9700]])
+test(`PicPay (${plan}) usa o preço do catálogo e ativa apenas após webhook autenticado e conciliado`,async t=>{
+ const DB=database(),origin='https://site.example.test',backend='https://worker.example.test',secret='a'.repeat(64);
+ const env={DB,PUBLIC_ORIGIN:origin,VERCEL_ORIGIN_SECRET:secret,PICPAY_CLIENT_ID:'test-id',
+  PICPAY_CLIENT_SECRET:'test-secret',PICPAY_WEBHOOK_TOKEN:'webhook-test'};
+ t.after(()=>DB.sql.close());
+ const call=(path,data,cookie)=>worker.fetch(new Request(backend+'/api/'+path,{
+  method:data?'POST':'GET',headers:{Origin:origin,'x-mentra-origin-secret':secret,...(cookie?{Cookie:cookie}:{})},
+  body:data?JSON.stringify(data):undefined
+ }),env);
+ const signup=await call('register',{name:'Teste',email:'picpay@example.test',password:'synthetic-picpay-password',plan:'essencial'});
+ const cookie=signup.headers.get('set-cookie').split(';')[0];
+ assert.equal((await call('picpay/checkout',{plan})).status,401);
+ const calls=[];
+ t.mock.method(globalThis,'fetch',async(url,options)=>{
+  calls.push(url);
+  const body=JSON.parse(options.body);
+  if(url.endsWith('/oauth2/token')){
+   assert.equal(body.client_secret,'test-secret');
+   return Response.json({access_token:'test-token'});
+  }
+  assert.equal(options.headers.Authorization,'Bearer test-token');
+  assert.equal(body.charge.amounts.product,amount);
+  assert.equal(body.charge.redirect_url,origin+'/#/planos');
+  return Response.json({link:'https://link.picpay.com/p/test-link',amount:amount});
+ });
+ for(let i=0;i<2;i++){
+  const checkout=await call('picpay/checkout',{plan,amount:1},cookie);
+  assert.equal(checkout.status,200);
+  assert.equal((await checkout.json()).checkoutUrl,'https://link.picpay.com/p/test-link');
+ }
+ assert.equal(calls.length,2);
+ const subscription=async()=>(await (await call('me',null,cookie)).json()).subscription;
+ assert.equal((await subscription()).status,'pending');
+ const notify=(transaction,token=env.PICPAY_WEBHOOK_TOKEN,type='PAYMENT')=>worker.fetch(new Request(backend+'/api/picpay/webhook',{
+  method:'POST',headers:{authorization:token,[plan==='premium'?'event_type':'event-type']:'TransactionPaymentMessage'},
+  body:JSON.stringify({type,data:{transaction,charge:{amount:amount,paymentLinkId:'test-link'}}})
+ }),env);
+ const paid={id:'test-payment',status:'PAYED',amount:amount};
+ assert.equal((await notify(paid,'invalid-token')).status,401);
+ assert.equal((await notify({...paid,amount:1})).status,409);
+ assert.equal((await notify(paid)).status,200);
+ const activated=await subscription();
+ assert.equal(activated.plan,plan);
+ assert.equal(activated.status,'active');
+ assert.equal((await notify(paid)).status,200);
+ assert.deepEqual(await subscription(),activated);
+ assert.equal((await notify({id:'test-refund',originalTransactionId:paid.id,status:'REFUNDED',amount:amount},undefined,'REFUND')).status,200);
+ assert.equal((await subscription()).status,'canceled');
+ assert.equal((await notify(paid)).status,200);
+ assert.equal((await subscription()).status,'canceled');
+});
 
 test('Vercel proxy: cadastro/sessão/logout, origem e IP permanecem isolados no backend Cloudflare',async()=>{
  const DB=database(),origin='https://site.example.test',backend='https://api.example.test',secret='a'.repeat(64),env={DB,PUBLIC_ORIGIN:origin,VERCEL_ORIGIN_SECRET:secret};
@@ -19,6 +72,24 @@ test('Vercel proxy: cadastro/sessão/logout, origem e IP permanecem isolados no 
   assert.equal((await call('logout',{method:'POST',cookie})).status,200);assert.equal((await call('me',{cookie})).status,401);
  }finally{DB.sql.close();}
 });
+test('acesso administrativo exige senha e papel no servidor, sem promoção pelo cadastro',async t=>{
+ const DB=database(),origin='https://mentra.test',env={DB};t.after(()=>DB.sql.close());
+ const call=(path,data,cookie)=>worker.fetch(new Request(origin+'/api/'+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(data)}),env);
+ const password='synthetic-admin-password-2026',email='owner@admin.example.test';
+ const registered=await call('register',{name:'Owner',email,password,plan:'plus',role:'admin'});
+ assert.equal(registered.status,200);assert.equal((await registered.json()).user.role,'user');
+ const userCookie=registered.headers.get('set-cookie').split(';')[0];
+ const overview=cookie=>worker.fetch(new Request(origin+'/api/admin/overview',{headers:{Cookie:cookie}}),env);
+ assert.equal((await overview(userCookie)).status,403);
+ DB.sql.prepare("UPDATE users SET role='admin' WHERE email=?").run(email);
+ const wrong=await call('login',{email,password:'synthetic-wrong-password'});assert.equal(wrong.status,401);assert.equal(wrong.headers.get('set-cookie'),null);
+ const unknown=await call('login',{email:'missing@admin.example.test',password});assert.equal(unknown.status,401);
+ const login=await call('login',{email:email.toUpperCase(),password});assert.equal(login.status,200);assert.equal((await login.json()).user.role,'admin');assert.match(login.headers.get('set-cookie'),/HttpOnly.*Secure/);
+ const cookie=login.headers.get('set-cookie').split(';')[0];assert.equal((await overview(cookie)).status,200);
+ DB.sql.prepare("UPDATE users SET role='user' WHERE email=?").run(email);assert.equal((await overview(cookie)).status,403);
+ assert.equal((await call('logout',{},cookie)).status,200);assert.equal((await overview(cookie)).status,401);
+});
+
 test('admin, assinatura, IA, cotas, falhas do provedor e revogação de sessões',async()=>{
  const DB=database(),env={DB,DEEPSEEK_API_KEY:'fake-test-key',DEEPSEEK_MODEL:'test-model'},origin='https://mentra.test';
  async function call(path,{method='GET',data,cookie}={}){const response=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined}),env);return {status:response.status,body:await response.json(),cookie:response.headers.get('Set-Cookie')?.split(';')[0],headers:response.headers};}
@@ -29,7 +100,7 @@ test('admin, assinatura, IA, cotas, falhas do provedor e revogação de sessões
  assert.equal((await call('admin/subscription',{method:'POST',cookie:b.cookie,data:{userId:b.body.user.id,plan:'premium',status:'active',days:30}})).status,403);
  assert.equal((await call('admin/subscription',{method:'POST',cookie:a.cookie,data:{userId:b.body.user.id,plan:'essencial',status:'active',days:30}})).status,200);
  const originalFetch=globalThis.fetch;let calls=0;
- globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://api.deepseek.com/chat/completions');assert.equal(options.headers.Authorization,'Bearer fake-test-key');const payload=JSON.parse(options.body);assert.equal(payload.model,'test-model');assert.equal(payload.messages[0].role,'system');return Response.json({choices:[{message:{content:'Resposta de teste'}}]});};
+ globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://api.deepseek.com/chat/completions');assert.equal(options.headers.Authorization,'Bearer fake-test-key');const payload=JSON.parse(options.body);assert.equal(payload.model,'test-model');assert.deepEqual(payload.thinking,{type:'disabled'});assert.equal(payload.messages[0].role,'system');return Response.json({choices:[{message:{content:'Resposta de teste'}}]});};
  try{
   const chat=()=>call('chat',{method:'POST',cookie:b.cookie,data:{messages:[{role:'user',content:'Me ajude a organizar o dia'}]}});
   assert.equal((await chat()).body.text,'Resposta de teste');
@@ -47,8 +118,15 @@ test('admin, assinatura, IA, cotas, falhas do provedor e revogação de sessões
   assert.equal((await call('me',{cookie:b.cookie})).body.usage.requests,1);
   const overview=await call('admin/overview',{cookie:a.cookie});assert.deepEqual(overview.body.counts,{users:2,active:1,monthlyRequests:1});assert.equal(overview.body.integrations.deepseek,true);
   assert.equal((await call('admin/overview',{cookie:b.cookie})).status,403);
+  assert.equal(overview.body.insights.pending,1);assert.equal(overview.body.insights.newThisWeek,2);assert.equal(overview.body.insights.feedbackNew,0);assert.deepEqual(overview.body.insights.activeByPlan,{essencial:1});
+  const actives=await call('admin/users?status=active',{cookie:a.cookie});assert.equal(actives.body.total,1);assert.equal(actives.body.users[0].email,'user@example.test');assert.equal(actives.body.users[0].requests,1);
+  assert.equal((await call('admin/users?status=pending',{cookie:a.cookie})).body.users[0].email,'admin@example.test');assert.equal((await call('admin/users?status=qualquer',{cookie:a.cookie})).status,400);
+  const activity=await call('admin/activity',{cookie:a.cookie});assert.equal(activity.status,200);assert.equal((await call('admin/activity',{cookie:b.cookie})).status,403);
+  const granted=activity.body.items.find(i=>i.kind==='subscription');assert.equal(granted.target.email,'user@example.test');assert.equal(granted.status,'active');assert.equal(granted.actor.email,'admin@example.test');assert.ok(activity.body.items.some(i=>i.kind==='plan_catalog_updated'));
   assert.equal((await call('admin/users?q=admin%40',{cookie:a.cookie})).body.total,1);
   assert.equal((await call('admin/users?q=%25',{cookie:a.cookie})).body.total,0);
+  assert.equal((await call('admin/users?q='+encodeURIComponent('x'.repeat(190)+'@mail.test'),{cookie:a.cookie})).status,200);
+  assert.equal((await call('admin/users?q='+encodeURIComponent('á'.repeat(200)),{cookie:a.cookie})).status,200);
   assert.equal((await call('admin/users?page=-1',{cookie:a.cookie})).status,400);
   for(let i=0;i<55;i++){DB.sql.prepare('INSERT INTO users(id,email,name,password_hash,salt,created_at) VALUES(?,?,?,?,?,?)').run('bulk-'+i,`bulk-${i}@example.test`,'Bulk '+i,'fixture','fixture',i);DB.sql.prepare('INSERT INTO subscriptions(user_id,plan) VALUES(?,?)').run('bulk-'+i,'essencial');}
   const first=await call('admin/users',{cookie:a.cookie}),second=await call('admin/users?page=2',{cookie:a.cookie});assert.equal(first.body.total,57);assert.equal(first.body.users.length,50);assert.equal(second.body.users.length,7);assert.equal(new Set([...first.body.users,...second.body.users].map(u=>u.id)).size,57);
@@ -64,6 +142,27 @@ test('admin, assinatura, IA, cotas, falhas do provedor e revogação de sessões
  assert.equal((await call('recover',{method:'POST',data:{email:'user@example.test',recoveryCode:b.body.recoveryCode,password:'another-long-password'}})).status,403);
  assert.equal((await call('login',{method:'POST',data:{email:'user@example.test',password:'a-recovered-long-password'}})).status,200);
  DB.sql.close();
+});
+
+test('DeepSeek recebe contexto exclusivo de cada conta e ignora proprietário forjado no pedido',async()=>{
+ const DB=database(),env={DB,DEEPSEEK_API_KEY:'synthetic-only'},origin='https://mentra.test';
+ async function call(path,{method='GET',data,cookie}={}){const r=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined}),env);return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
+ const users=[];
+ for(const label of ['ALFA','BETA']){
+  const u=await call('register',{method:'POST',data:{name:label,email:label+'@context.example.test',password:'context-test-password-2026',plan:'plus'}});assert.equal(u.status,200);users.push(u);
+  const data={version:5,profile:{name:label,goal:'META-'+label},tasks:[{title:'TAREFA-'+label,done:false}],events:[],records:[{title:'DESPESA-'+label,cents:100,type:'expense'}],documents:[{title:'ARQUIVO-SECRETO-'+label}],health:{note:'SAUDE-SECRETA-'+label},journeys:[{id:'j-'+label,title:'PLANO-'+label,barrier:'DIFICULDADE-'+label,time:5,status:'paused',steps:[{title:'ETAPA-'+label,status:'doing'}]}],inbox:[],messages:[]};
+  assert.equal((await call('state',{method:'PUT',cookie:u.cookie,data:{data,revision:0}})).status,200);
+ }
+ DB.sql.prepare("UPDATE subscriptions SET status='active'").run();
+ const original=globalThis.fetch,payloads=[];globalThis.fetch=async(url,options)=>{payloads.push(JSON.parse(options.body));return Response.json({choices:[{message:{content:'Resposta sintética'}}]});};
+ try{
+  for(const [index,label,other] of [[0,'ALFA','BETA'],[1,'BETA','ALFA'],[0,'ALFA','BETA']]){
+   const r=await call('chat',{method:'POST',cookie:users[index].cookie,data:{userId:users[1-index].body.user.id,journeyId:'j-'+label,messages:[{role:'user',content:'Analise minha rotina'}]}});assert.equal(r.status,200);
+   const payload=JSON.stringify(payloads.at(-1));assert.ok(payload.includes('TAREFA-'+label));assert.ok(payload.includes('DESPESA-'+label));assert.ok(!payload.includes('TAREFA-'+other));assert.ok(!payload.includes('DESPESA-'+other));assert.ok(!payload.includes('SECRETO'));assert.ok(!payload.includes('SECRETA'));assert.ok(payload.includes('DIFICULDADE-'+label));assert.ok(payload.includes('ETAPA-'+label));assert.ok(!payload.includes('PLANO-'+other));
+  }
+  const calls=payloads.length;for(const journeyId of ['j-BETA','missing',42]){const r=await call('chat',{method:'POST',cookie:users[0].cookie,data:{journeyId,messages:[{role:'user',content:'Analise este plano'}]}});assert.equal(r.status,journeyId===42?400:404);}assert.equal(payloads.length,calls);
+  const month=new Date().toISOString().slice(0,7);assert.equal(DB.sql.prepare('SELECT requests FROM ai_usage WHERE user_id=? AND month=?').get(users[0].body.user.id,month).requests,2);assert.equal(DB.sql.prepare('SELECT requests FROM ai_usage WHERE user_id=? AND month=?').get(users[1].body.user.id,month).requests,1);
+ }finally{globalThis.fetch=original;DB.sql.close();}
 });
 
 test('memória opcional é privada e revogável; exportação identifica proprietário sem credenciais',async()=>{

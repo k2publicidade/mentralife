@@ -2,6 +2,7 @@ import {parseAccountBackup} from './backup.mjs';
 import {escapeHtml as esc} from './core.mjs';
 import {compareStates} from './sync-review.mjs';
 import {saveFile} from './file-save.mjs';
+import {mergeStates} from './sync-merge.mjs';
 export async function installSyncUI({sync,store,platform,api,send}){
  const toolbar=document.createElement('div');toolbar.className='platform-toolbar';toolbar.innerHTML='<span></span><a href="#/planos">Minha assinatura</a><button type="button" data-sync="logout">Sair</button><small class="sync-status" role="status">Conta conectada</small>';
  toolbar.querySelector('span').textContent=platform.user.name;
@@ -11,10 +12,29 @@ export async function installSyncUI({sync,store,platform,api,send}){
  let importGeneration=0,lastPanelView=null;
  let status=sync.status(),records=[],forceRecovery=true,operationBusy=false,review=null,notice=store.persistent?'':'Este navegador mantém cópias apenas na memória desta aba. Não feche antes da confirmação do servidor.',allowLeave=false,paused=false;
  const snapshot=()=>window.mentraSnapshot?.()||platform.data;
+ // Última versão confirmada pelo servidor: base da mesclagem automática entre abas/aparelhos.
+ let base=structuredClone(snapshot()),lastLocal=null,mergeAttempts=0,lastRefresh=0,retryTimer=null;
+ const OFFLINE='Sem conexão com a internet. Assim que ela voltar, enviamos suas alterações automaticamente.';
+ const isNetwork=error=>Boolean(error)&&!error.status&&(error.name==='TypeError'||error.name==='TimeoutError'||error.name==='AbortError'||/fetch|network|load failed|timed? ?out|internet/i.test(String(error.message||'')));
+ async function autoMerge(){
+  if(operationBusy||review||status.phase!=='conflict')return;mergeAttempts++;operationBusy=true;draw();
+  try{const remote=await api('state'),local=snapshot(),result=mergeStates(base,local,remote.data);
+   if(!result.ok)return;
+   if(await sync.replace(result.data,remote.revision)){window.mentraReplaceState(result.data);base=structuredClone(result.data);lastLocal=null;mergeAttempts=0;notice='Juntamos automaticamente as alterações feitas em outro aparelho ou aba.';}
+  }catch{}finally{operationBusy=false;draw();}
+ }
+ async function retryNow(){if(operationBusy||review||!['error','offline'].includes(status.phase)||!navigator.onLine)return;operationBusy=true;draw();try{await sync.retry(snapshot());}catch{}finally{operationBusy=false;draw();}}
+ function scheduleRetry(){if(retryTimer)return;retryTimer=setTimeout(()=>{retryTimer=null;if(['error','offline'].includes(status.phase)){void retryNow();scheduleRetry();}},20000);retryTimer?.unref?.();}
+ async function refreshFromServer(){
+  if(document.hidden||operationBusy||review||forceRecovery||status.blocked||sync.hasPending()||!navigator.onLine)return;
+  if(document.querySelector('#modal-root .modal,.prod-layer')||document.activeElement?.matches?.('input,textarea,select,[contenteditable]'))return;
+  if(Date.now()-lastRefresh<15000)return;lastRefresh=Date.now();
+  try{const remote=await api('state');if(remote.revision>sync.status().revision&&!sync.hasPending()&&!status.blocked){await sync.discard(remote.revision);window.mentraReplaceState(remote.data);base=structuredClone(remote.data);}}catch{}
+ }
  const b=(text,action,extra='')=>`<button type="button" class="outline" data-sync="${action}" ${extra}>${text}</button>`;
  function gate(){const blocked=forceRecovery||status.blocked||operationBusy||Boolean(review);window.mentraSyncBlocked=blocked;const app=document.querySelector('#app');if(app)app.inert=blocked;if(blocked&&!paused){window.mentraDataEpoch=(window.mentraDataEpoch||0)+1;window.mentraInterrupt?.();window.mentraCloseModal?.();}paused=blocked;}
  function renderPanel(){
-  gate();const messages={idle:'Alterações salvas',saving:'Salvando alterações…',conflict:'Conflito de versões',auth:'Entre novamente na sua conta',storage:'Cópia local não concluída',error:'Gravação interrompida'};toolbar.querySelector('.sync-status').textContent=operationBusy?'Conferindo alterações…':forceRecovery?'Há cópias locais para revisar':(status.phase==='idle'&&status.revision===0?'Conta conectada':messages[status.phase])||'Conta conectada';
+  gate();const messages={offline:'Sem conexão · salvo no aparelho',idle:'Alterações salvas',saving:'Salvando alterações…',conflict:'Conflito de versões',auth:'Entre novamente na sua conta',storage:'Cópia local não concluída',error:'Gravação interrompida'};toolbar.querySelector('.sync-status').textContent=operationBusy?'Conferindo alterações…':forceRecovery?'Há cópias locais para revisar':(status.phase==='idle'&&status.revision===0?'Conta conectada':messages[status.phase])||'Conta conectada';
   panel.hidden=!(forceRecovery||status.blocked||review||notice||records.length);
   if(panel.hidden){panel.innerHTML='';return;}
   if(review?.mode==='remove-draft'){panel.innerHTML=`<h2>Remover esta cópia local?</h2><p>A cópia ${new Date(review.record.updatedAt).toLocaleString('pt-BR')} será removida deste navegador. O servidor não será alterado. Baixe antes se quiser preservar seu conteúdo.</p><div class="sync-actions">${b('Baixar cópia','export-local')}${b('Voltar','cancel-review')}${b('Confirmar remoção da cópia','confirm-review')}</div>`;return;}
@@ -22,7 +42,7 @@ export async function installSyncUI({sync,store,platform,api,send}){
   panel.innerHTML=`<h2>${status.blocked?'Suas alterações precisam de atenção.':records.length?'Há cópias de recuperação neste navegador.':'Estado da sincronização'}</h2>${status.blocked?`<p>${esc(status.error?.message||'A gravação não foi confirmada.')}</p><p>${status.localCopySaved?'Uma cópia da última alteração está guardada neste dispositivo.':'Mantenha esta aba aberta e baixe uma cópia antes de sair; a cópia local não está confirmada.'} O sistema pausa as edições para evitar perda ou sobrescrita silenciosa.</p><div class="sync-actions">${b('Tentar salvar novamente','retry')}${b('Baixar alterações desta aba','export-local')}${b('Comparar e usar servidor','review-server')}${status.phase==='conflict'?b('Comparar e substituir servidor','review-local'):''}${status.phase==='auth'?'<a class="outline" href="/" data-sync="reauth">Entrar novamente</a>':''}</div>`:records.length||forceRecovery?'<p>Podem ser alterações interrompidas ou ainda abertas em outra aba. Escolha uma cópia para retomar ou continue com os dados atuais do servidor.</p>':'<p>Não há gravações pendentes nesta aba.</p>'}${records.length?`<div class="sync-drafts">${records.map((r,i)=>`<article><p><b>Cópia ${i+1}</b> · ${new Date(r.updatedAt).toLocaleString('pt-BR')} · versão ${r.baseRevision}</p><p>${r.data?.tasks?.length||0} tarefas · ${r.data?.documents?.length||0} documentos</p><div class="sync-actions">${b('Retomar esta cópia','recover',`data-key="${esc(r.key)}"`)}${b('Baixar cópia','export-draft',`data-key="${esc(r.key)}"`)}${b('Remover cópia local','remove-draft',`data-key="${esc(r.key)}"`)}</div></article>`).join('')}</div>`:''}${forceRecovery?`<div class="sync-actions">${b('Continuar com o servidor e manter cópias locais','ignore')}</div>`:''}<p class="sync-notice" role="status">${esc(notice)}</p>${!status.blocked&&!forceRecovery&&!records.length?b('Fechar aviso','dismiss'):''}<p class="small muted">Cópias pendentes ficam neste navegador, associadas à sua conta, até serem confirmadas ou removidas. O acesso à rede ainda é necessário para abrir e salvar a conta.</p>`;
  }
  function draw(){
-  const wasHidden=panel.hidden;renderPanel();
+  const wasHidden=panel.hidden;renderPanel();if(!navigator.onLine||status.phase==='offline')toolbar.querySelector('.sync-status').textContent=status.pending?'Sem conexão · salvo no aparelho':'Sem conexão';
   if(panel.hidden){lastPanelView=null;if(!wasHidden)document.querySelector('#main-content')?.focus?.({preventScroll:true});return;}
   const view=review||(status.blocked?'blocked:'+status.phase:notice?'notice:'+notice:forceRecovery?'recovery':records.length?'drafts':'idle');
   if(view!==lastPanelView){lastPanelView=view;const title=panel.querySelector('h2');if(title){title.tabIndex=-1;title.focus?.({preventScroll:true});title.scrollIntoView?.({block:'start',behavior:'instant'});}}
@@ -33,7 +53,9 @@ export async function installSyncUI({sync,store,platform,api,send}){
  async function runAfterSync(action){if(operationBusy)return false;operationBusy=true;draw();try{if(!await sync.flush()){notice='Resolva a gravação pendente antes de continuar.';return false;}await action();return true;}finally{operationBusy=false;draw();}}
  for(const eventName of ['click','submit'])document.addEventListener(eventName,event=>{if(window.mentraSyncBlocked&&event.target.closest?.('#app,#modal-root')){event.preventDefault();event.stopImmediatePropagation();}},true);
  window.addEventListener('beforeunload',event=>{if(!allowLeave&&sync.hasPending()){event.preventDefault();event.returnValue='';}});
- window.addEventListener('online',()=>{if(status.phase==='error')notice='A conexão voltou. Use Tentar salvar novamente para reenviar sua cópia.';draw();});
+ window.addEventListener('online',()=>{draw();if(['error','offline'].includes(status.phase))void retryNow();else void refreshFromServer();});
+ window.addEventListener('offline',draw);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshFromServer();});window.addEventListener('focus',()=>void refreshFromServer());setInterval(()=>void refreshFromServer(),60000)?.unref?.();
  async function click(event){const target=event.target.closest('[data-sync]');if(!target)return;const action=target.dataset.sync;if(action==='reauth'){allowLeave=status.localCopySaved;return;}event.preventDefault();if(operationBusy)return;importGeneration++;try{
   if(action.startsWith('export-')){operationBusy=true;draw();}
   if(action==='logout'){await runAfterSync(async()=>{await window.mentraBeforeLogout?.();await send('logout',{});allowLeave=true;location.reload();});return;}
@@ -69,5 +91,12 @@ export async function installSyncUI({sync,store,platform,api,send}){
  });
  toolbar.addEventListener('click',click);panel.addEventListener('click',click);
  gate();try{await refresh();forceRecovery=records.length>0;}catch(error){forceRecovery=false;notice='Não foi possível consultar cópias locais: '+error.message;}draw();
- return {update(next){status=next;draw();},runAfterSync,clearCopies:()=>store.clearUser(platform.user.id)};
+ return {update(next){
+  if(next.phase==='offline'||(next.error&&isNetwork(next.error)))next={...next,error:{message:OFFLINE},offline:true};
+  if(next.localCopy?.data)lastLocal=next.localCopy.data;
+  if(!next.pending&&!next.blocked&&next.phase==='idle'){if(lastLocal){base=structuredClone(lastLocal);lastLocal=null;}mergeAttempts=0;if(/Tentar salvar novamente|conexão voltou/.test(notice))notice='';}
+  status=next;draw();
+  if(next.phase==='conflict'&&mergeAttempts<2)setTimeout(()=>void autoMerge(),0);
+  if(next.offline)scheduleRetry();
+ },runAfterSync,clearCopies:()=>store.clearUser(platform.user.id)};
 }

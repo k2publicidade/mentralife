@@ -1,5 +1,5 @@
 const storageKey='mentra-native-push-device';
-const routePattern=/^\/#\/(vida\/(agenda|tarefas)|momentos\/(morning|afternoon|night))$/;
+const routePattern=/^\/#\/(vida\/(agenda|tarefas)|arquivos\/(documentos|contratos|garantias)|momentos\/(morning|afternoon|night))$/;
 export async function installNativePush(plugin,platform,request,{available=true,storage=localStorage,user=()=>globalThis.mentraPlatform?.user?.id||globalThis.mentraNativeUserId,go=path=>{location.hash=path.slice(1);}}={}){
  let pending=null,queuedRoute=null,generation=0;const bindings=new Set();
  const stored=()=>{try{return JSON.parse(storage.getItem(storageKey)||'null');}catch{return null;}};

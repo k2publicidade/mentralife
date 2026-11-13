@@ -12,6 +12,18 @@ Somente título, data, horário, duração e identificador de origem entram na a
 
 O conector não escreve no Google, não envia convites, não consulta em segundo plano e não oferece assinatura de calendário por URL. Outros calendários, Microsoft/Apple, sincronização bidirecional e serviços financeiros continuam pendentes no escopo histórico.
 
+## Autorização no app Android/iOS
+
+O app abre o consentimento pelo plugin oficial Capacitor Browser (Chrome Custom Tabs/SFSafariViewController), sem colocar o login do Google no WebView da Mentra. O servidor identifica esse fluxo por um prefixo no nonce e mantém o verificador PKCE e o vínculo à sessão original.
+
+A página HTTPS `/calendar-callback` remove os parâmetros da barra e oferece **Voltar ao app Mentra**. O link `mentralife://calendar/complete` transporta somente o código temporário e o estado, nunca access/refresh tokens ou cookies. O app confere o nonce que iniciou, a conta atual e o prazo, e conclui a troca usando sua própria sessão. Interceptar o esquema não permite resgatar o código sem a sessão original e o verificador PKCE no servidor. O callback web convencional permanece vinculado à sessão do navegador.
+
+O nonce e a identidade da conta ficam localmente por até dez minutos para suportar reabertura; o código não é persistido pelo app. Outro usuário conectado, retorno repetido, nonce diferente, negação e fechamento do navegador não concluem a conexão. Sair da conta cancela a tentativa local. Se a sessão original tiver sido encerrada ou trocada, inicie novamente.
+
+Os projetos incluem o esquema de retorno no AndroidManifest e no Info.plist, e os eventos de abertura passam pelo plugin App. Publicar o callback web e a API atualizados antes de distribuir o binário. O redirect URI registrado no Google continua sendo o HTTPS já configurado; não registrar o esquema privado como redirect URI desse cliente web. A homologação real exige confirmar abertura e retorno nos dois sistemas e o consentimento do cliente OAuth.
+
+Referências: [restrições de user-agent do Google](https://developers.google.com/identity/protocols/oauth2/native-app), [Capacitor Browser](https://capacitorjs.com/docs/apis/browser).
+
 ## Proteção de acesso
 
 OAuth com PKCE S256, estado aleatório com validade de dez minutos, uso único e vínculo à conta e à sessão que iniciou a conexão. Códigos de retorno são removidos da barra de endereço após carregar a página. Tokens ficam no backend, criptografados com AES-256-GCM, IV aleatório e conta como dado autenticado; não aparecem no navegador, listagem ou exportação da conta. A chave permanece fora do D1.

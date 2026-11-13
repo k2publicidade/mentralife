@@ -1,6 +1,6 @@
-# Backup D1 e restauração isolada — 29/10/2026
+# Backup D1 e restauração isolada — atualizado em 05/11/2026
 
-Ferramentas de operação implementadas e ensaiadas com o D1 local. A exportação criptografada e restauração em base isolada preservaram os dados de oito tabelas conferidas, incluindo estado, partes de arquivos e concessões. Integridade SQLite e chaves estrangeiras passaram. Isso não comprova um ensaio remoto, uma política de retenção ou um RPO/RTO de produção.
+Ferramentas de operação implementadas e ensaiadas com o D1 local. A exportação criptografada e restauração em base isolada preservaram os dados de oito tabelas conferidas, incluindo estado, partes de arquivos e concessões. Integridade SQLite e chaves estrangeiras passaram. Em 05/11/2026 foi realizado também o ensaio remoto descrito abaixo. Retenção, cópia externa e RPO/RTO de produção continuam pendentes.
 
 ## Arquivos privados e chave
 
@@ -41,7 +41,7 @@ O SQL decifrado contém dados privados, hashes e credenciais de sessões do snap
 1. Preserve a base atual e registre o incidente, horário do backup, versão do aplicativo e alterações/exclusões posteriores. Mantenha a restauração sem Worker público nem cron.
 2. Crie um D1 remoto novo e vazio, exclusivamente para o ensaio. Prepare configuração separada: `npm run prepare:deployment -- --environment restore-test --database-id ID-REAL-DA-COPIA --worker mentra-life-restore-test`. O preparo recusa compartilhar D1 ou nome de Worker com staging/produção. Não publique um Worker usando essa configuração.
 3. Confira o ID desse D1 novo. Importe o SQL privado com `npx wrangler d1 execute DB --remote --config wrangler.restore-test.jsonc --file .mentra-private/restauracao-ensaio.sql`. Não execute contra produção ou uma base com dados existentes.
-4. Aplique imediatamente a quarentena: `npx wrangler d1 execute DB --remote --config wrangler.restore-test.jsonc --file scripts/restore-quarantine.sql`. O dump desta versão já inclui o schema das nove migrações. Para snapshot antigo, complete as migrações compatíveis na base isolada antes de aplicar a quarentena atual; valide a compatibilidade, sem conectá-la ao serviço público.
+4. Aplique imediatamente a quarentena: `npx wrangler d1 execute DB --remote --config wrangler.restore-test.jsonc --file scripts/restore-quarantine.sql`. O dump desta versão já inclui o schema das dez migrações. Para snapshot antigo, complete as migrações compatíveis na base isolada antes de aplicar a quarentena atual; valide a compatibilidade, sem conectá-la ao serviço público.
 5. Confira contagens, FKs, revisões, partes dos arquivos e hashes/originais, incluindo duas contas isoladas. Compare com o inventário do snapshot e registre tempo de exportação/restauração e qualquer divergência. Não use dados pessoais reais em evidências públicas.
 
 A quarentena grava o bloqueio persistente `restore_quarantine` em product_settings. Enquanto existir, todas as APIs (inclusive cadastro/login/recuperação e webhook) respondem 503; `/api/health` indica recovery/quarantine e o scheduler não processa integrações. Isso mantém a cópia bloqueada caso seja ligada a um Worker antes da liberação operacional.
@@ -60,12 +60,20 @@ DELETE FROM product_settings WHERE key='restore_quarantine';
 
 A remoção do bloqueio não reativa links revogados nem reconecta dispositivos/calendários/WhatsApp. Cada vínculo exige novo fluxo explícito. O comando não é executado automaticamente pelo deploy ou pela ferramenta de backup. Faça o smoke de leitura, login/recuperação/isolamento e homologação dos provedores antes de admitir usuários.
 
-## Evidência desta rodada e pendências
+## Ensaio remoto de 05/11/2026
+
+Snapshot real de produção exportado pelo comando documentado, com backup criptografado de 5.605 bytes e SQL autenticado de 17.495 bytes. Importação local em memória passou em integrity_check/FKs. Restauração em D1 remoto temporário, sem Worker público/cron, com quarentena no SQL de importação: oito tabelas de negócio/configurações comparadas por digest sem expor conteúdo; quick_check retornou ok; foreign_key_check sem violações; sessões e dispositivos push vazios; restore_quarantine confirmado. O D1 temporário foi excluído após o ensaio e a produção não foi substituída/colocada em quarentena. Evidência privada: qa/audit-restore-remote-2026-11-05.log. Backup e SQL permaneceram exclusivamente em .mentra-private.
+
+Para verificar o D1 remoto use PRAGMA quick_check e PRAGMA foreign_key_check, conforme a [referência de SQL do D1](https://developers.cloudflare.com/d1/sql-api/sql-statements/); não presuma suporte a todo PRAGMA do SQLite local. A primeira tentativa foi interrompida pela checagem inadequada; o recurso temporário foi limpo e a nova execução com comandos suportados passou.
+
+O ensaio cobre o snapshot existente. A verificação de dados sintéticos ricos, originais, links e quarentena também permanece coberta pelo ensaio local anterior e testes automatizados. Não é um exercício completo de incidente, nem aceita restauração pública sem a reconciliação descrita acima.
+
+## Evidência local anterior e pendências
 
 Ensaio real local: exportação Wrangler para arquivo criptografado (202.393 bytes), decriptação de SQL com metadados (357.861 bytes), restauração em SQLite separado e comparação exata de oito tabelas contra o D1 local. Depois foi aplicada a quarentena apenas na cópia: estados/originais preservados, sessões/links/conexões/envios desativados e integridade/FKs corretas. Artefatos ficaram em `.mentra-private`, fora da hospedagem e do ZIP fonte.
 
 Testes automatizados cobrem criptografia, senha/adulteração/truncamento, limite, caminhos/symlinks, exclusividade do arquivo, limpeza de intermediários, separação de alvos e bloqueio de API/cron na quarentena. Falhas de exportação não anunciam backup concluído.
 
-Pendências reais: autenticação Cloudflare; D1 e configuração remotos; cópia externa e retenção; responsável; RPO/RTO; ensaio remoto; reconciliação de exclusões/credenciais e retomada após incidente. DeepSeek e gateway permanecem no final do roteiro geral.
+Pendências reais: cópia externa e retenção; responsável; RPO/RTO; reconciliação de exclusões/credenciais e ensaio da retomada após incidente. Autenticação Cloudflare, D1 de produção, exportação criptografada e restauração remota isolada foram conferidos em 05/11/2026. Consulte o relatório de auditoria atualizado para DeepSeek, áudio e cobrança PicPay.
 
 Referências oficiais: [importação/exportação D1](https://developers.cloudflare.com/d1/best-practices/import-export-data/), [comandos D1](https://developers.cloudflare.com/workers/wrangler/commands/d1/), [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/). Os recursos remotos disponíveis na conta precisam ser confirmados na implantação.

@@ -17,6 +17,7 @@
       },
       "continue": true
     },
+    {"src": "/(?!api/)(.+)\\.(?:mjs|js|css|png|webp|jpg|svg|woff2|ttf|otf|wasm|gz|bcmap|pfb|icc|webmanifest)", "headers": {"Cache-Control": "no-cache"}, "continue": true},
     {"src": "/(?:downloads|handoff)(?:/.*)?", "status": 404},
     {"src": "/(?:share|calendar-callback)(?:\\.html)?", "headers": {"X-Robots-Tag": "noindex, nofollow, noarchive"}, "continue": true},
     {

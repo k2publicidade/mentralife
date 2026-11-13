@@ -19,6 +19,15 @@ async function fixture(t){
  return {DB,env,call,a,b,calls,start,complete,connect,preview,setEvents:v=>events=v,setToken:v=>extraToken=v,setStatus:v=>httpStatus=v,hook:fn=>exchangeHook=fn};
 }
 const event=(patch={})=>({id:'external-1',iCalUID:'stable-uid',summary:'Consulta sintética',start:{dateTime:'2026-10-29T13:00:00Z'},end:{dateTime:'2026-10-29T14:00:00Z'},...patch});
+test('autorização iniciada no app mantém PKCE e só troca código na sessão que a iniciou',async t=>{
+ const c=await fixture(t),started=await c.call('calendar/connect',{method:'POST',cookie:c.a.cookie,body:{confirmed:true,native:true}}),target=new URL(started.body.url),state=target.searchParams.get('state');
+ assert.match(state,/^native\.[a-f0-9]{64}$/);assert.equal(target.searchParams.get('redirect_uri'),origin+'/calendar-callback');assert.equal(target.searchParams.get('code_challenge_method'),'S256');
+ const body={state:state.slice(7),code:'synthetic-native-code'};
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.b.cookie,body})).status,409);
+ assert.equal((await c.call('calendar/complete',{method:'POST',body})).status,401);
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.a.cookie,body})).status,200);
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.a.cookie,body})).status,409);
+});
 test('OAuth exige sessão/origem/consentimento, PKCE e estado secreto de uso único',async t=>{
  const c=await fixture(t);assert.equal((await c.start(null)).status,401);
  assert.equal((await c.call('calendar/connect',{method:'POST',cookie:c.a.cookie,body:{confirmed:true},requestOrigin:'https://attacker.test'})).status,403);

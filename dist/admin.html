@@ -1,1 +1,47 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Administração · Mentra Life</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="platform.css"><link rel="stylesheet" href="admin.css"><link rel="stylesheet" href="premium.css"><link rel="stylesheet" href="ux.css"></head><body><main class="portal admin-page"><a href="/">← Voltar ao meu painel</a><p class="eyebrow">MENTRA LIFE · GESTÃO</p><h1>Uma visão clara da operação.</h1><p>Gerencie os planos, acompanhe o uso e cuide dos acessos.</p><div id="admin-session" class="admin-session" hidden></div><nav hidden class="admin-sections" aria-label="Seções da administração"><a href="#admin-overview">Visão geral</a><a href="#admin-plans">Planos</a><a href="#users-title">Contas e acessos</a></nav><p id="admin-status" role="status" tabindex="-1"></p><div id="admin-content"><p>Verificando seu acesso…</p></div></main><script type="module" src="admin.mjs"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#102f26">
+<title>Admin Master · Mentra Life</title>
+<link rel="preload" href="assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="assets/mentra-icon-512.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="platform.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="am-body">
+<a class="am-skip" href="#admin-content">Ir para o conteúdo</a>
+<div class="am" id="admin-app" data-state="loading">
+  <aside class="am-side" aria-label="Menu da administração">
+    <a class="am-brand" href="#/inicio">
+      <img src="assets/mentra-logo-256.webp" alt="" width="34" height="34">
+      <span><b>Mentra Life</b><small>Admin Master</small></span>
+    </a>
+    <nav hidden class="admin-sections am-nav" aria-label="Seções da administração"></nav>
+    <div class="am-side-foot">
+      <a class="am-side-link" href="/">← Voltar ao meu painel</a>
+    </div>
+  </aside>
+  <div class="am-main">
+    <header class="am-top" hidden>
+      <div class="am-top-title">
+        <h1 id="am-title">Visão geral</h1>
+        <p id="am-subtitle"></p>
+      </div>
+      <div class="am-top-actions">
+        <button type="button" class="am-icon-btn" id="am-refresh" aria-label="Atualizar dados" title="Atualizar dados"></button>
+        <div id="admin-session" class="admin-session am-session" hidden></div>
+      </div>
+    </header>
+    <main id="admin-content" class="am-content" tabindex="-1">
+      <div class="am-boot"><span class="am-spinner" aria-hidden="true"></span><p>Verificando seu acesso…</p></div>
+    </main>
+  </div>
+</div>
+<div id="admin-status" class="am-toast" role="status" aria-live="polite"></div>
+<script type="module" src="admin.mjs"></script>
+</body>
+</html>

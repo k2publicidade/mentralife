@@ -1,3 +1,25 @@
 .library-contexts{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}.library-toolbar{flex-wrap:wrap}.library-toolbar .search-field{flex:1;min-width:200px}.library-card-actions{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:18px}.library-card-actions button{font-size:12px}.library-card-actions [aria-pressed=true]{color:#806021;font-weight:700}.library-detail-actions{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}.library-note{white-space:pre-wrap;overflow-wrap:anywhere}.library-text-preview{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;max-height:350px;overflow:auto;padding:14px;background:#f1f3ec;border-radius:8px}.library-hash{overflow-wrap:anywhere;margin-top:25px!important}.library-text{font:14px/1.65 system-ui,sans-serif!important;width:100%;min-height:260px}.document-card h3{overflow-wrap:anywhere}.document-card>small{display:block;color:#6c796b}.library-toolbar select{max-width:250px}#library-error:not(:empty){color:#9b3732;background:#f8eee9;padding:12px;border-radius:8px}#library-progress{padding:20px;border-radius:10px;background:#edf1e6;color:#244c3e}@media(max-width:760px){.library-toolbar{align-items:stretch}.library-toolbar .search-field{flex-basis:100%;min-width:0}.library-toolbar select{max-width:none;flex:1}.library-card-actions{gap:14px}.library-detail-actions button{flex:1;min-width:160px}}
 
 .library-check{display:flex!important;align-items:center;gap:10px;margin:18px 0!important}.library-check input{width:auto!important;margin:0!important}
+
+/* Meus Arquivos: datas importantes e lembretes */
+.files-tabs .tab span[aria-hidden]{margin-right:6px}
+.library-upcoming{margin-bottom:22px}
+.library-upcoming.empty-upcoming{background:#f6f4ec;border-style:dashed}
+.library-upcoming.empty-upcoming h2{font-size:18px;margin:4px 0}
+.library-upcoming-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.library-upcoming-list li{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.library-upcoming-list li.soon{border-color:#e6cf9a;background:#fdf8ec}
+.library-upcoming-list li.late{border-color:#e7b9b3;background:#fbefed}
+.library-upcoming-list time{display:flex;flex-direction:column;align-items:center;justify-content:center;width:48px;height:48px;border-radius:10px;background:#edf1e6;color:var(--forest-deep);line-height:1}
+.library-upcoming-list time b{font-size:18px}
+.library-upcoming-list time span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+.library-upcoming-list strong{display:block;overflow-wrap:anywhere}
+.library-upcoming-list small{display:block;color:var(--muted);margin-top:2px}
+.library-date-chip{font-size:12px;line-height:1.45;margin:8px 0 6px!important;padding:6px 9px;border-radius:8px;background:#edf1e6;color:#244c3e}
+.library-date-chip.soon{background:#fbf1d8;color:#6b4e12}
+.library-date-chip.late{background:#f8e4e1;color:#8a2f28}
+.library-date-fields{border:1px solid var(--line);border-radius:12px;padding:12px 16px 14px;margin:18px 0}
+.library-date-fields legend{font-weight:700;padding:0 6px}
+.library-date-fields .library-check{margin:12px 0 8px!important}
+@media(max-width:760px){.library-upcoming-list li{grid-template-columns:auto 1fr}.library-upcoming-list li>button{grid-column:2;justify-self:start}}

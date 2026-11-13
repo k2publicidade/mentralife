@@ -16,7 +16,7 @@ export async function hostedRequest(request,env){
  if(!/^[a-f0-9]{64}$/.test(env.VERCEL_ORIGIN_SECRET||''))throw unavailable();
  const url=new URL(request.url);
  // Meta calls this signed webhook directly; the health endpoint contains no private data.
- if(url.pathname==='/api/health'||url.pathname==='/api/whatsapp/webhook')return request;
+ if(url.pathname==='/api/health'||url.pathname==='/api/whatsapp/webhook'||url.pathname==='/api/picpay/webhook')return request;
  if(!url.pathname.startsWith('/api/'))return request;
  const supplied=request.headers.get('x-mentra-origin-secret')||'';
  if(supplied.length!==64||!await sameSecret(supplied,env.VERCEL_ORIGIN_SECRET))throw Object.assign(Error('Acesso ao backend não autorizado.'),{status:403});

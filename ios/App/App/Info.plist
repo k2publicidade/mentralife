@@ -49,7 +49,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -81,5 +81,9 @@
 	<string>Permita fotografar um documento para anexá-lo à sua biblioteca Mentra.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permita selecionar uma foto para anexá-la à sua biblioteca Mentra.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Permita usar o microfone para enviar mensagens de voz à Mentra IA.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

@@ -41,7 +41,7 @@ export async function documentShareRoutes(req,env,user){
   await throttle(db,user.id);const b=await integrationBody(req);validateId(b.documentId);expiry(b.hours);
   const current=await readState(db,user.id),doc=findDocument(current.data,b.documentId);if(!doc)problem('Documento não disponível.',404);
   const email=String(b.recipientEmail||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)problem('Informe o e-mail da conta destinatária.');
-  const recipient=await db.prepare('SELECT id,name,email FROM users WHERE email=?').bind(email).first();if(!recipient)problem('A pessoa precisa ter uma conta Mentra cadastrada antes de receber este acesso.');
+  const recipient=await db.prepare('SELECT id,name,email FROM users WHERE email=?').bind(email).first();if(!recipient)problem('A pessoa precisa ter uma conta Mentra cadastrada antes de receber este acesso.');if(recipient.id===user.id)problem('Para compartilhar, informe o e-mail de outra pessoa.');
   const file=await fileFrom(doc);return json({document:metadata(doc,file),recipient,hours:b.hours,revision:current.revision,signature:file.signature});
  }
  if(path==='/api/document-shares'&&req.method==='POST'){
@@ -58,7 +58,7 @@ export async function documentShareRoutes(req,env,user){
   };
   if(repeated)return replay(repeated);
   const current=await readState(db,user.id),doc=findDocument(current.data,b.documentId);if(!doc||current.revision!==b.revision)problem('O documento ou sua conta mudou. Revise novamente antes de criar o link.',409);
-  const recipient=await db.prepare('SELECT id,name,email FROM users WHERE id=?').bind(b.recipientId).first();if(!recipient)problem('A conta destinatária não está disponível.',409);
+  const recipient=await db.prepare('SELECT id,name,email FROM users WHERE id=?').bind(b.recipientId).first();if(!recipient)problem('A conta destinatária não está disponível.',409);if(recipient.id===user.id)problem('Para compartilhar, informe o e-mail de outra pessoa.');
   const file=await fileFrom(doc);if(file.signature!==b.signature)problem('O original mudou. Revise novamente.',409);
   const now=Date.now(),expiresAt=now+b.hours*3600000;
   const saved=await db.prepare('INSERT OR IGNORE INTO document_shares(id,owner_id,recipient_id,document_id,token_hash,document_signature,sha256,title,filename,mime,file_size,created_at,expires_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM user_states WHERE user_id=? AND revision=?) AND (SELECT COUNT(*) FROM document_shares WHERE owner_id=? AND revoked_at IS NULL AND expires_at>?)<? RETURNING id').bind(id,user.id,recipient.id,doc.id,tokenHash,file.signature,file.sha256,String(doc.title||'Documento').slice(0,160),file.filename,file.mime,file.size,now,expiresAt,user.id,current.revision,user.id,now,MAX_ACTIVE).first();

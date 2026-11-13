@@ -1,6 +1,7 @@
 import {mkdirSync,copyFileSync,cpSync,readdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
+import {build} from 'esbuild';
 const target=resolve('dist/vendor');mkdirSync(target,{recursive:true});
 const files=[];
 function copy(source,destination){mkdirSync(resolve(target,destination,'..'),{recursive:true});copyFileSync(source,resolve(target,destination));files.push(destination);}
@@ -15,7 +16,21 @@ for(const name of readdirSync('node_modules/tesseract.js-core'))if(/^tesseract-c
 copy('node_modules/@tesseract.js-data/por/4.0.0_best_int/por.traineddata.gz','tesseract/lang/por.traineddata.gz');
 copy('node_modules/@tesseract.js-data/por/package.json','tesseract/lang/package.json');
 copy('node_modules/@tesseract.js-data/por/README.md','tesseract/lang/README.md');
+await build({
+ absWorkingDir:process.cwd(), tsconfigRaw:{},
+ entryPoints:{
+  editor:resolve('scripts/finance-sheet-editor.mjs'),
+  chart:resolve('scripts/finance-sheet-chart.mjs'),
+  xlsx:resolve('scripts/finance-sheet-xlsx.mjs')
+ },
+ outdir:resolve(target,'finance-sheet'), outExtension:{'.js':'.mjs'},
+ bundle:true, minify:true, format:'esm', target:'es2022',
+ define:{'process.env.NODE_ENV':'"production"'}
+});
+copy('node_modules/@univerjs/presets/LICENSE','finance-sheet/LICENSE');
+copy('node_modules/xlsx/LICENSE','finance-sheet/LICENSE_XLSX');
+copy('node_modules/chart.js/LICENSE.md','finance-sheet/LICENSE_CHART.md');
 function scan(dir,prefix=''){for(const entry of readdirSync(dir,{withFileTypes:true})){const relative=prefix+entry.name;if(entry.isDirectory())scan(resolve(dir,entry.name),relative+'/');else if(relative!=='manifest.json'&&!files.includes(relative))files.push(relative);}}
 scan(target);const versions=Object.fromEntries(['pdfjs-dist','tesseract.js','tesseract.js-core','@tesseract.js-data/por'].map(name=>[name,JSON.parse(readFileSync('node_modules/'+name+'/package.json','utf8')).version]));
 writeFileSync(resolve(target,'manifest.json'),JSON.stringify({versions,files:Object.fromEntries(files.sort().map(file=>[file,createHash('sha256').update(readFileSync(resolve(target,file))).digest('hex')]))},null,2)+'\n');
-console.log('Bibliotecas PDF/OCR locais preparadas; versões e hashes registrados.');
+console.log('Bibliotecas locais de PDF, OCR e planilhas preparadas; hashes registrados.');

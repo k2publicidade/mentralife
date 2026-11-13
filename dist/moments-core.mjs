@@ -18,11 +18,11 @@ const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isTime = value => typeof value === 'string' && TIME_PATTERN.test(value);
 
-/** Always creates independent nested objects. Christian content is opt-in. */
+/** Always creates independent nested objects. Mensagens são sempre de inspiração cristã. */
 export function defaultMomentsSettings() {
   return {
     enabled: true,
-    christian: false,
+    christian: true,
     periods: Object.fromEntries(PERIODS.map(({id, defaultTime}) => [id, {enabled: true, time: defaultTime}])),
   };
 }
@@ -114,11 +114,14 @@ const MOMENTS = Object.freeze({
   }),
 });
 
-/** Invalid periods are programming errors. Only literal true opts into Christian content. */
-export function getMoment(period, christian = false) {
+/**
+ * Invalid periods are programming errors. Por decisão do produto, toda mensagem
+ * é cristã e motivacional; o parâmetro legado `christian` é ignorado.
+ */
+export function getMoment(period) {
   const definition = PERIODS.find(item => item.id === period);
   if (!definition) throw new RangeError('Período de momento inválido.');
-  const id = `${christian === true ? 'christian' : 'neutral'}-${period}`;
+  const id = `christian-${period}`;
   return {id, period, label: definition.label, ...MOMENTS[id], cardPath: `assets/moments/${id}.png`};
 }
 
