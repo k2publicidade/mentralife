@@ -21,7 +21,7 @@ async function firebaseAuthorization(env,fetcher,now){
  const account=firebaseAccount(env);if(!account)throw Error('FCM não configurado.');
  if(authorization?.credential===env.FCM_SERVICE_ACCOUNT&&authorization.expires>now+60000)return authorization.token;
  const issued=Math.floor(now/1000),assertion=await jwt({alg:'RS256',typ:'JWT'},{iss:account.client_email,scope:'https://www.googleapis.com/auth/firebase.messaging',aud:'https://oauth2.googleapis.com/token',iat:issued,exp:issued+3600},account.private_key,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'});
- const response=await fetcher('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),redirect:'error',signal:AbortSignal.timeout(15000)});
+ const response=await fetcher('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),redirect:'manual',signal:AbortSignal.timeout(15000)});
  if(!response.ok)throw Error('Autorização FCM indisponível.');const result=await response.json();
  if(typeof result.access_token!=='string'||!Number.isFinite(result.expires_in)||result.expires_in<=0)throw Error('Autorização FCM inválida.');
  authorization={credential:env.FCM_SERVICE_ACCOUNT,token:result.access_token,expires:now+Math.min(3600,result.expires_in)*1000};return result.access_token;
@@ -32,7 +32,7 @@ export async function sendNativePush(env,device,payload,{fetcher=fetch,now=Date.
  const title='Mentra Life',body='Você tem um lembrete na sua conta.';
  if(device.platform==='android'){
   const account=firebaseAccount(env),token=await firebaseAuthorization(env,fetcher,now);
-  const response=await fetcher(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:{token:device.token,notification:{title,body},data:{url:payload.url,tag:payload.tag},android:{ttl:'300s',collapse_key:payload.tag,notification:{channel_id:'mentra-reminders',tag:payload.tag}}}}),redirect:'error',signal:AbortSignal.timeout(15000)});
+  const response=await fetcher(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:{token:device.token,notification:{title,body},data:{url:payload.url,tag:payload.tag},android:{ttl:'300s',collapse_key:payload.tag,notification:{channel_id:'mentra-reminders',tag:payload.tag}}}}),redirect:'manual',signal:AbortSignal.timeout(15000)});
   let unregistered=false;if(response.status===404){try{const error=await response.clone().json();unregistered=error.error?.details?.some(detail=>detail.errorCode==='UNREGISTERED')===true;}catch{}}
   if(response.status===401)authorization=null;
   return {response,unregistered};
@@ -41,7 +41,7 @@ export async function sendNativePush(env,device,payload,{fetcher=fetch,now=Date.
  if(appleAuthorization?.credential!==credential||appleAuthorization.expires<=now)appleAuthorization={credential,expires:now+45*60000,token:await jwt({alg:'ES256',kid:env.APNS_KEY_ID},{iss:env.APNS_TEAM_ID,iat:Math.floor(now/1000)},env.APNS_PRIVATE_KEY,{name:'ECDSA',namedCurve:'P-256'})};
  const bearer=appleAuthorization.token;
  const host=env.APNS_ENVIRONMENT==='sandbox'?'api.sandbox.push.apple.com':'api.push.apple.com';
- const response=await fetcher(`https://${host}/3/device/${device.token}`,{method:'POST',headers:{authorization:'bearer '+bearer,'apns-topic':env.APNS_TOPIC,'apns-push-type':'alert','apns-priority':'10','apns-expiration':String(Math.floor(now/1000)+300),'apns-collapse-id':payload.tag,'Content-Type':'application/json'},body:JSON.stringify({aps:{alert:{title,body}},url:payload.url,tag:payload.tag}),redirect:'error',signal:AbortSignal.timeout(15000)});
+ const response=await fetcher(`https://${host}/3/device/${device.token}`,{method:'POST',headers:{authorization:'bearer '+bearer,'apns-topic':env.APNS_TOPIC,'apns-push-type':'alert','apns-priority':'10','apns-expiration':String(Math.floor(now/1000)+300),'apns-collapse-id':payload.tag,'Content-Type':'application/json'},body:JSON.stringify({aps:{alert:{title,body}},url:payload.url,tag:payload.tag}),redirect:'manual',signal:AbortSignal.timeout(15000)});
  let unregistered=response.status===410;
  if(response.status===400){try{unregistered=['BadDeviceToken','DeviceTokenNotForTopic'].includes((await response.clone().json()).reason);}catch{}}
  return {response,unregistered};
