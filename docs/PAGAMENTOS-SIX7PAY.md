@@ -10,7 +10,15 @@ A Six7Pay não oferece link de pagamento nem webhook. Por isso a cobrança acont
 2. O Worker cria a cobrança em `POST /paytime/transactions` com `payment_type: PIX`. O cabeçalho `Idempotency-Key` e o `reference_id` recebem o mesmo valor único (`mentra-<id>`). O QR Code vem de `GET /paytime/transactions/<id>/qrcode`.
 3. A tela mostra o QR Code (quando a API devolve a imagem) e o código copia e cola. Ela consulta `/api/six7pay/order` a cada 5 s.
 4. O Worker consulta `GET /paytime/transactions/<id>` no máximo a cada 10 s por pedido. O cron de cada minuto também confere os pedidos abertos: a cada 30 s na primeira hora e a cada 5 min depois. O plano é ativado mesmo que a pessoa feche a tela.
-5. O status `PAID` com o valor igual ao do pedido libera 30 dias, registrado em `payment_events` (`six7pay:<transação>`). Uma confirmação repetida não estende o período.
+5. O status `PAID` com o valor igual ao do pedido libera os dias gravados no pedido (30, 90 ou 365), somados ao maior valor entre agora e o fim da vigência atual. Fica registrado em `payment_events` (`six7pay:<transação>`, com `days` e `promotional`). Uma confirmação repetida não estende o período.
+
+### Preço, período e promoção
+
+- O valor é decidido só pelo servidor em `POST /api/six7pay/checkout`. O cliente envia apenas o id do plano; qualquer valor enviado junto é ignorado.
+- Preço promocional (`promoPriceCents`) só para quem nunca teve um pedido Six7Pay pago nem pagamento registrado em `payment_events`, inclusive dos planos antigos. Pedidos pagos e depois estornados também contam como já pagos.
+- O pedido grava `amount` (valor cobrado), `days` e `promotional` (migração `0016_six7pay_periods.sql`). Mudar o catálogo depois não altera o que um pedido já criado libera. Pedidos antigos sem `days` valem 30 dias.
+- Renovar antes de vencer é permitido. Contas liberadas pela administração sem data final não compram.
+- `GET /api/plans` e `GET /api/me` devolvem, por plano, `regularPriceCents` (igual a `priceCents`), `promoPriceCents`, `days`, `chargeCents` (quanto esta pessoa pagaria agora) e `promotional`.
 
 ### Regras de segurança
 
@@ -71,5 +79,5 @@ Depois disso, `SIX7PAY_CHECKOUT` foi para `on` em produção.
 ## Estornos e painel de pagamentos (/admin → Pagamentos)
 
 - A tela lista os últimos 100 pedidos com conta, plano, valor e situação. Mostra também o saldo disponível e o saldo a liberar na Six7Pay e se o checkout está ligado.
-- **Estornar** pede confirmação e chama `POST /paytime/transactions/<id>/reversal` com o valor integral e `Idempotency-Key: estorno-<pedido>`. Repetir o pedido não gera um segundo estorno. Os 30 dias daquele pagamento saem da assinatura (fica `canceled` se não sobrar período) e o estorno é registrado em `payment_events` e na Atividade.
+- **Estornar** pede confirmação e chama `POST /paytime/transactions/<id>/reversal` com o valor integral e `Idempotency-Key: estorno-<pedido>`. Repetir o pedido não gera um segundo estorno. Os dias liberados por aquele pagamento saem da assinatura (fica `canceled` se não sobrar período) e o estorno é registrado em `payment_events` e na Atividade.
 - Estornos ou chargebacks feitos direto no painel da Six7Pay também são detectados. O cron reconsulta cada pagamento confirmado a cada 6 h durante 35 dias e aplica o mesmo ajuste uma única vez.

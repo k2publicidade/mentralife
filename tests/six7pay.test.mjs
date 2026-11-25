@@ -43,17 +43,19 @@ function stub(t,handlers){
  return calls;
 }
 
-for(const [plan,amount] of [['essencial',2700],['plus',4700],['premium',9700]])
-test(`Six7Pay PIX (${plan}): cobra o preço do catálogo, não duplica e ativa só depois de PAID`,async t=>{
+const DAY=86400000;
+for(const [plan,amount,regular,days] of [['essencial',6700,9990,30],['plus',14700,19990,90],['premium',29700,49990,365]])
+test(`Six7Pay PIX (${plan}): 1º pagamento promocional, ${days} dias, não duplica e ativa só depois de PAID`,async t=>{
  const {env,call,cookie,me,age}=await setup(t);
  assert.equal((await call('six7pay/checkout',{plan})).status,401);
  let status='PENDING',paidAmount=amount,establishment=440627;
  // Shapes copied from real Six7Pay responses: with interest STORE, amount is net and original_amount is charged.
- const tx=()=>({_id:TX,status,interest:'STORE',establishment:{id:establishment,type:'BUSINESS'},amount:paidAmount-3,original_amount:paidAmount,fees:3,type:'PIX',emv:EMV,reference_id:'x'});
+ let txid=TX;
+ const tx=()=>({_id:txid,status,interest:'STORE',establishment:{id:establishment,type:'BUSINESS'},amount:paidAmount-3,original_amount:paidAmount,fees:3,type:'PIX',emv:EMV,reference_id:'x'});
  const calls=stub(t,[
   [/^POST \/paytime\/transactions$/,({body,headers})=>{
    assert.deepEqual(Object.keys(body).sort(),['amount','interest','payment_type','reference_id']);
-   assert.equal(body.payment_type,'PIX');assert.equal(body.amount,amount);assert.equal(body.interest,'STORE');
+   assert.equal(body.payment_type,'PIX');assert.equal(body.amount,paidAmount);assert.equal(body.interest,'STORE');
    assert.match(body.reference_id,/^mentra-[a-f0-9]{24}$/);
    assert.equal(headers['Idempotency-Key'],body.reference_id);
    return Response.json(tx());
@@ -61,9 +63,12 @@ test(`Six7Pay PIX (${plan}): cobra o preço do catálogo, não duplica e ativa s
   [/^GET \/paytime\/transactions\/[^/]+\/qrcode$/,()=>Response.json({qrcode:PNG})],
   [/^GET \/paytime\/transactions\/[^/]+$/,()=>Response.json(tx())]
  ]);
- const first=await (await call('six7pay/checkout',{plan,amount:1},cookie)).json();
+ // Whatever the client sends besides the plan id is ignored: the server sets amount and days.
+ const first=await (await call('six7pay/checkout',{plan,amount:1,chargeCents:1,priceCents:1,days:999,promotional:true},cookie)).json();
  assert.equal(first.order.status,'pending');
  assert.equal(first.order.amount,amount);
+ assert.equal(first.order.days,days);
+ assert.equal(first.order.promotional,true);
  assert.equal(first.order.pixCode,EMV);
  assert.equal(first.order.qrImage,PNG);
  const again=await (await call('six7pay/checkout',{plan},cookie)).json();
@@ -90,12 +95,19 @@ test(`Six7Pay PIX (${plan}): cobra o preço do catálogo, não duplica e ativa s
  const active=(await me()).subscription;
  assert.equal(active.plan,plan);
  assert.equal(active.status,'active');
- assert.ok(active.current_period_end>Date.now()+29*86400000);
+ assert.ok(Math.abs(active.current_period_end-(Date.now()+days*DAY))<60000,`libera ${days} dias`);
  age(20000);
  await call('six7pay/order',null,cookie);
  await worker.scheduled({},env);
  assert.deepEqual((await me()).subscription,active,'confirmação repetida não estende o período');
- assert.equal((await call('six7pay/checkout',{plan},cookie)).status,409);
+ // After a paid order the promotion is gone: renewing costs the regular price.
+ const priced=(await me()).plans.find(p=>p.id===plan);
+ assert.equal(priced.chargeCents,regular);assert.equal(priced.promotional,false);
+ paidAmount=regular;status='PENDING';txid='6aa5d6ac5f5fc577ba661799';
+ const renewal=await (await call('six7pay/checkout',{plan,amount:amount},cookie)).json();
+ assert.equal(renewal.order.amount,regular,'segundo pagamento a preço cheio');
+ assert.equal(renewal.order.promotional,false);
+ assert.equal(calls.filter(c=>c.method==='POST').at(-1).body.amount,regular);
 });
 
 test('Six7Pay: resposta incerta (202) nunca é reenviada e é conciliada pelo reference_id no cron',async t=>{
@@ -104,9 +116,9 @@ test('Six7Pay: resposta incerta (202) nunca é reenviada e é conciliada pelo re
  const calls=stub(t,[
   [/^POST \/paytime\/transactions$/,({body})=>{reference=body.reference_id;return Response.json({status:'UNKNOWN'},{status:202});}],
   [/^GET \/paytime\/dashboard\/transactions$/,()=>Response.json({total:2,data:[
-   {reference_id:reference,establishment_id:'335886',paytime_id:'ffffffffffffffffffffffff',status:'PAID',amount:2700},
-   {reference_id:reference,establishment_id:'440627',paytime_id:TX,status:'PAID',amount:2700}]})],
-  [/^GET \/paytime\/transactions\/6aa5d6ac5f5fc577ba661748$/,()=>Response.json({_id:TX,status:'PAID',amount:2700})]
+   {reference_id:reference,establishment_id:'335886',paytime_id:'ffffffffffffffffffffffff',status:'PAID',amount:6700},
+   {reference_id:reference,establishment_id:'440627',paytime_id:TX,status:'PAID',amount:6700}]})],
+  [/^GET \/paytime\/transactions\/6aa5d6ac5f5fc577ba661748$/,()=>Response.json({_id:TX,status:'PAID',amount:6700})]
  ]);
  const first=await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json();
  assert.equal(first.order.status,'unknown');
@@ -131,7 +143,7 @@ test('Six7Pay: recusa definitiva libera nova tentativa; chave sem SIX7PAY_CHECKO
  stub(t,[
   [/^POST \/paytime\/transactions$/,()=>fail
    ?Response.json({error:{code:'PAYTIME_ERROR',message:'Falha',requestId:'46fdfa1a-749e-4558-8168-0e0bf30fdaa0'}},{status:422})
-   :Response.json({_id:TX,status:'PENDING',amount:2700})],
+   :Response.json({_id:TX,status:'PENDING',amount:6700})],
   [/^GET \/paytime\/transactions\/[^/]+\/qrcode$/,()=>Response.json({qrcode:{emv:EMV}})]
  ]);
  const refused=await call('six7pay/checkout',{plan:'essencial'},cookie);
@@ -146,17 +158,17 @@ test('Six7Pay: recusa definitiva libera nova tentativa; chave sem SIX7PAY_CHECKO
  assert.equal((await call('six7pay/checkout',{plan:'plus'},cookie)).status,503);
 });
 
-test('Six7Pay: estorno pelo admin devolve uma vez e retira os 30 dias; estorno feito na Six7Pay é detectado',async t=>{
+test('Six7Pay: estorno pelo admin devolve uma vez e retira os dias do pedido; estorno feito na Six7Pay é detectado',async t=>{
  const {env,DB,call,cookie,me,age}=await setup(t);
  const admin=await call('register',{name:'Admin',email:'admin-six7@example.test',password:'synthetic-admin-password',plan:'essencial'});
  DB.sql.prepare("UPDATE users SET role='admin' WHERE email=?").run('admin-six7@example.test');
  const adminCookie=admin.headers.get('set-cookie').split(';')[0];
- let status='PENDING',txCount=0;const ids=['6aa5d6ac5f5fc577ba661748','6aa5d6ac5f5fc577ba661749'];
+ let status='PENDING',txCount=0;const ids=['6aa5d6ac5f5fc577ba661748','6aa5d6ac5f5fc577ba661749'],charged={};
  const calls=stub(t,[
-  [/^POST \/paytime\/transactions$/,()=>Response.json({_id:ids[txCount++],status:'PENDING',interest:'STORE',establishment:{id:440627},amount:2697,original_amount:2700,emv:EMV})],
+  [/^POST \/paytime\/transactions$/,({body})=>{charged[ids[txCount]]=body.amount;return Response.json({_id:ids[txCount++],status:'PENDING',interest:'STORE',establishment:{id:440627},amount:body.amount-3,original_amount:body.amount,emv:EMV});}],
   [/^POST \/paytime\/transactions\/[^/]+\/reversal$/,()=>Response.json({_id:ids[0],status:'REFUNDED'})],
   [/^GET \/paytime\/transactions\/[^/]+\/qrcode$/,()=>Response.json({qrcode:PNG})],
-  [/^GET \/paytime\/transactions\/[^/]+$/,()=>Response.json({status,establishment:{id:440627},amount:2697,original_amount:2700})],
+  [/^GET \/paytime\/transactions\/[^/]+$/,({path})=>Response.json({status,establishment:{id:440627},amount:charged[path.split('/').pop()]-3,original_amount:charged[path.split('/').pop()]})],
   [/^GET \/paytime\/establishments\/balance$/,()=>Response.json({total_balance:2697,blocked_balance:2697,balance:0})]
  ]);
  const {order}=await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json();
@@ -169,14 +181,15 @@ test('Six7Pay: estorno pelo admin devolve uma vez e retira os 30 dias; estorno f
  const refund=await call('admin/payments/refund',{orderId:order.id,confirm:true},adminCookie);
  assert.equal(refund.status,200);
  const reversal=calls.find(c=>c.path.endsWith('/reversal'));
- assert.deepEqual(reversal.body,{amount:2700});
+ assert.deepEqual(reversal.body,{amount:6700},'estorna o valor promocional cobrado');
  assert.equal(reversal.headers['Idempotency-Key'],'estorno-'+order.id);
  assert.equal((await me()).subscription.status,'canceled');
  assert.equal((await call('admin/payments/refund',{orderId:order.id,confirm:true},adminCookie)).status,409);
  assert.equal(calls.filter(c=>c.path.endsWith('/reversal')).length,1);
  // A second purchase refunded directly in the Six7Pay panel is picked up by the cron.
  status='PENDING';
- await call('six7pay/checkout',{plan:'essencial'},cookie);
+ const second=(await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json()).order;
+ assert.equal(second.amount,9990,'um pagamento estornado ainda conta como já pago');
  status='PAID';age(20000);await call('six7pay/order',null,cookie);
  assert.equal((await me()).subscription.status,'active');
  status='REFUNDED';
@@ -186,4 +199,67 @@ test('Six7Pay: estorno pelo admin devolve uma vez e retira os 30 dias; estorno f
  await worker.scheduled({},env);
  assert.equal((await me()).subscription.status,'canceled');
  assert.equal(DB.sql.prepare("SELECT count(*) n FROM payment_events WHERE event_id LIKE 'six7pay-refund:%'").get().n,2);
+});
+
+test('Six7Pay: renovação antecipada soma dias ao fim da vigência; pedido mantém dias mesmo se o catálogo mudar',async t=>{
+ const {DB,call,cookie,me,age}=await setup(t);
+ let status='PENDING',n=0;const charged={},ids=['6aa5d6ac5f5fc577ba661750','6aa5d6ac5f5fc577ba661751','6aa5d6ac5f5fc577ba661752'];
+ stub(t,[
+  [/^POST \/paytime\/transactions$/,({body})=>{charged[ids[n]]=body.amount;return Response.json({_id:ids[n++],status:'PENDING',establishment:{id:440627},original_amount:body.amount,emv:EMV});}],
+  [/^GET \/paytime\/transactions\/[^/]+\/qrcode$/,()=>Response.json({qrcode:PNG})],
+  [/^GET \/paytime\/transactions\/[^/]+$/,({path})=>Response.json({status,establishment:{id:440627},original_amount:charged[path.split('/').pop()]})]
+ ]);
+ const pay=async()=>{status='PAID';age(20000);const r=(await (await call('six7pay/order',null,cookie)).json()).order;status='PENDING';return r;};
+ // Visitors and new accounts see the promotional price; the regular one comes along.
+ const anon=(await (await call('plans')).json()).plans;
+ assert.deepEqual(anon.map(p=>[p.name,p.days,p.regularPriceCents,p.promoPriceCents,p.chargeCents,p.promotional,p.monthlyRequests]),
+  [['Mensal',30,9990,6700,6700,true,2000],['Trimestral',90,19990,14700,14700,true,2000],['Anual',365,49990,29700,29700,true,2000]]);
+ assert.equal((await me()).plans[0].chargeCents,6700);
+ // First payment: Mensal, promotional, 30 days from now.
+ const first=(await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json()).order;
+ assert.equal(first.amount,6700);
+ assert.equal((await pay()).status,'paid');
+ const end1=(await me()).subscription.current_period_end;
+ assert.ok(Math.abs(end1-(Date.now()+30*DAY))<60000);
+ // Logged-in /api/plans now shows only regular prices for this person.
+ const mine=(await (await call('plans',null,cookie)).json()).plans;
+ assert.deepEqual(mine.map(p=>[p.chargeCents,p.promotional]),[[9990,false],[19990,false],[49990,false]]);
+ // Early renewal with Trimestral while active: regular price, 90 days added after the current end.
+ const second=(await (await call('six7pay/checkout',{plan:'plus'},cookie)).json()).order;
+ assert.equal(second.amount,19990);assert.equal(second.days,90);assert.equal(second.promotional,false);
+ // The catalog changes after the order was created: confirmation still grants what was sold.
+ const changed=structuredClone((await me()).plans).map(({regularPriceCents,chargeCents,promotional,...p})=>({...p,days:7}));
+ DB.sql.prepare("INSERT INTO product_settings(key,value,updated_at) VALUES('plans',?,?)").run(JSON.stringify(changed),Date.now());
+ assert.equal((await pay()).status,'paid');
+ const sub=(await me()).subscription;
+ assert.equal(sub.plan,'plus');
+ assert.ok(Math.abs(sub.current_period_end-(end1+90*DAY))<60000,'estende a partir do fim da vigência atual, não de hoje');
+ DB.sql.prepare("DELETE FROM product_settings WHERE key='plans'").run();
+ // Expired access: the next period starts now, not from the old end date.
+ DB.sql.prepare('UPDATE subscriptions SET current_period_end=?').run(Date.now()-5*DAY);
+ const third=(await (await call('six7pay/checkout',{plan:'premium'},cookie)).json()).order;
+ assert.equal(third.amount,49990);
+ await pay();
+ assert.ok(Math.abs((await me()).subscription.current_period_end-(Date.now()+365*DAY))<60000);
+ const events=DB.sql.prepare("SELECT json_extract(payload,'$.days') d,json_extract(payload,'$.promotional') p FROM payment_events ORDER BY created_at").all().map(r=>[r.d,r.p]);
+ assert.deepEqual(events,[[30,1],[90,0],[365,0]]);
+});
+
+test('Six7Pay: quem pagou nos planos antigos paga o valor regular; acesso liberado sem prazo não compra',async t=>{
+ const {DB,call,cookie,me}=await setup(t);
+ const calls=stub(t,[
+  [/^POST \/paytime\/transactions$/,({body})=>Response.json({_id:TX,status:'PENDING',establishment:{id:440627},original_amount:body.amount,emv:EMV})],
+  [/^GET \/paytime\/transactions\/[^/]+\/qrcode$/,()=>Response.json({qrcode:PNG})]
+ ]);
+ const userId=(await me()).user.id;
+ // An order paid before periods existed (R$ 27, no days column).
+ DB.sql.prepare("INSERT INTO six7pay_orders(id,user_id,plan,amount,status,created_at,expires_at,transaction_id,paid_at) VALUES('a'||hex(randomblob(12)),?,'essencial',2700,'paid',?,?,'6aa5d6ac5f5fc577ba66aaaa',?)").run(userId,1,2,3);
+ assert.equal((await me()).plans[0].chargeCents,9990);
+ const order=(await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json()).order;
+ assert.equal(order.amount,9990);assert.equal(order.promotional,false);
+ assert.equal(calls.filter(c=>c.method==='POST')[0].body.amount,9990);
+ // Access granted by the admin with no end date never asks for payment.
+ DB.sql.prepare("UPDATE six7pay_orders SET status='canceled' WHERE status!='paid'").run();
+ DB.sql.prepare("UPDATE subscriptions SET status='active',current_period_end=NULL").run();
+ assert.equal((await call('six7pay/checkout',{plan:'essencial'},cookie)).status,409);
 });

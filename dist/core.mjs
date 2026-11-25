@@ -32,7 +32,7 @@ export function classifyCapture(text,kind='text',today=operationDate()) {
  if(kind==='file')return {type:'document',title:'Documento de exemplo',category:'Pessoal',note:'Arquivo simulado. Somente o nome será incluído na biblioteca.'};
  const financial=parseFinancialCapture(clean,{}, {today});
  if(financial.type!=='none')return {...financial,type:financial.type==='clarification'?'clarification':'record',recordType:financial.draft?.type,needsReview:true};
- if(/reunião|reuniao|compromisso|encontro|agenda/i.test(clean))return globalThis.mentraProduction?eventFromText(clean,today):{type:'event',title:clean,date:'2026-10-15',time:'14:00'};
+ if(/reuni[aã]o|compromisso|encontro|agenda|consulta|dentista|m[eé]dic[oa]|exame|entrevista|\baulas?\b|visita|almo[cç]o com|jantar com|(?:^|\s)(?:[àa]s|as)\s*\d{1,2}\s*(?:h\b|:\d{2}|horas?\b)/i.test(clean))return globalThis.mentraProduction?eventFromText(clean,today):{type:'event',title:clean,date:'2026-10-15',time:'14:00'};
  return {type:'task',title:clean||'Revisar uma prioridade',category:'Pessoal'};
 }
 export function confirmCapture(state,capture) {
@@ -40,14 +40,14 @@ export function confirmCapture(state,capture) {
  const item={...capture,confirmed:true};const next=structuredClone(state);let route='vida/tarefas';
  if(item.type==='record'||item.type==='clarification'){return {state,route:'dinheiro/lancamentos',duplicate:false,needsReview:true};}
  else if(item.type==='event'){if(!validCalendarDate(item.date)||typeof item.time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time))return {state,route:'vida/agenda',duplicate:false,needsReview:true};next.events.push({id:id(),title:item.title,date:item.date,time:item.time,duration:30,...(item.timeZone?{timeZone:item.timeZone}:{})});route='vida/agenda';}
- else if(item.type==='document'){next.documents.unshift({id:id(),title:item.title,category:item.category,date:operationDate(),note:item.note,ext:'PDF',trashed:false});route='vida/documentos';}
+ else if(item.type==='document'){next.documents.unshift({id:id(),title:item.title,category:item.category,date:operationDate(),note:item.note,ext:'PDF',trashed:false});route='arquivos/documentos';}
  else next.tasks.unshift({id:id(),title:item.title,category:item.category,done:false});
  next.inbox=next.inbox.map(c=>c.id===item.id?{...item,route}:c);
  return {state:next,route,duplicate:false};
 }
 export function scriptReply(text) {
  const t=text.toLowerCase();
- if(/document|arquivo|garantia/.test(t))return {text:'Vamos encontrar sem procurar em várias pastas. Na biblioteca de exemplo, você pode buscar por nome ou categoria e abrir os detalhes.',label:'Encontrar um documento',route:'vida/documentos'};
+ if(/document|arquivo|garantia/.test(t))return {text:'Vamos encontrar sem procurar em várias pastas. Na biblioteca de exemplo, você pode buscar por nome ou categoria e abrir os detalhes.',label:'Encontrar um documento',route:'arquivos/documentos'};
  if(/sem renda|não tenho renda|nao tenho renda|começar.*renda|sem ideia|não sei por onde|nao sei por onde|encontrar.*caminho|trabalho|carreira/.test(t))return {text:'Você pode começar pelo que já sabe fazer, sem assumir um gasto. O primeiro passo é listar três habilidades e escolher uma oferta pequena para testar. Não há garantia de renda.',label:'Encontrar meu próximo passo',route:'caminhos/novo/discover'};
  if(/dinheiro|gasto|conta|finance|saldo/.test(t))return {text:'Vamos separar o que já entrou e saiu do que ainda é uma previsão. Depois, você escolhe uma prioridade possível. Os valores desta demonstração são fictícios.',label:'Entender meu dinheiro',route:'dinheiro'};
  if(/negócio|negocio|empresa/.test(t))return {text:'Escolha só um ponto que esteja pesando no negócio. Podemos organizar vendas, entregas e próximos passos em um plano de teste.',label:'Organizar o que já comecei',route:'caminhos/novo/ongoing'};

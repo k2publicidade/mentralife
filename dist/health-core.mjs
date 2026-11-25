@@ -106,6 +106,6 @@ export function consultationSummary(state){
  lines.push('',globalThis.mentraProduction?'HORÁRIOS INFORMADOS':'HORÁRIOS INFORMADOS — EXEMPLOS');
  if(!h.medications.length)lines.push('Nenhum horário registrado.');
  for(const m of [...h.medications].sort((a,b)=>a.time.localeCompare(b.time)))lines.push(`${m.time} | ${m.title} | ${m.done?(globalThis.mentraProduction?'Marcado':'Marcado na demonstração'):(globalThis.mentraProduction?'Sem marcação':'Sem marcação na demonstração')}`,`Nota: ${m.note||'Não informada.'}`);
- lines.push('','O protótipo não define doses, não valida tratamentos e não oferece lembretes externos ou conexão com profissionais. Confira os registros antes de escolher compartilhar.');
+ lines.push('',(globalThis.mentraProduction?'A Mentra não define doses,':'O protótipo não define doses,')+' não valida tratamentos e não oferece lembretes externos ou conexão com profissionais. Confira os registros antes de escolher compartilhar.');
  return lines.join('\n');
 }

@@ -520,3 +520,32 @@ test('irrelevant events and stale plan/step targets never mutate or save anythin
   assert.equal(c.dialogOpen(), false);
   assert.equal(c.saves.length, 0);
 });
+
+function liveMentor(t,flush=async()=>true){
+ const c=controller(t,{state:seeded()}),keys=['window','mentraPlatform','fetch'],previous=keys.map(k=>Object.getOwnPropertyDescriptor(globalThis,k));
+ globalThis.window={mentraDataEpoch:0,mentraSave:{flush},mentraPlatform:{usage:{requests:0}}};globalThis.mentraPlatform=window.mentraPlatform;
+ t.after(()=>keys.forEach((k,i)=>{if(previous[i])Object.defineProperty(globalThis,k,previous[i]);else delete globalThis[k];}));
+ return c;
+}
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('orientação real envia ID do plano e pedido legível sem copiar ou cortar JSON do plano',async t=>{
+ const c=liveMentor(t),j=c.state().journeys[0];let payload;
+ globalThis.fetch=async(url,options)=>{assert.equal(url,'/api/chat');payload=JSON.parse(options.body);return Response.json({text:'Orientação específica',usage:{requests:1}});};
+ c.click('journey-mentor-prompt',{id:j.id,prompt:'priority'});
+ for(let i=0;i<20&&!c.element('#journey-mentor-reply').innerHTML.includes('Orientação específica');i++)await tick();
+ assert.deepEqual(payload,{journeyId:j.id,messages:[{role:'user',content:'O que devo priorizar neste plano?'}]});assert.equal(window.mentraPlatform.usage.requests,1);assert.ok(c.element('#journey-mentor-reply').innerHTML.includes('Orientação específica'));assert.equal(c.saves.length,0);
+});
+
+test('troca de conta durante flush impede envio da orientação da conta anterior',async t=>{
+ let finish;const c=liveMentor(t,()=>new Promise(resolve=>{finish=resolve;})),j=c.state().journeys[0];let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({text:'Não deve chegar'});};
+ c.click('journey-mentor-prompt',{id:j.id,prompt:'start'});window.mentraDataEpoch++;finish(true);await tick();assert.equal(calls,0);assert.equal(c.element('#journey-mentor-reply').innerHTML,'');
+});
+
+test('resposta atrasada da orientação não altera texto nem cota após trocar de conta',async t=>{
+ const c=liveMentor(t),j=c.state().journeys[0];let finish;
+ globalThis.fetch=()=>new Promise(resolve=>{finish=resolve;});
+ c.click('journey-mentor-prompt',{id:j.id,prompt:'simplify'});for(let i=0;i<20&&!finish;i++)await tick();assert.ok(finish);
+ window.mentraDataEpoch++;window.mentraPlatform={usage:{requests:7}};finish(Response.json({text:'Resposta da conta anterior',usage:{requests:99}}));await tick();assert.equal(window.mentraPlatform.usage.requests,7);assert.equal(c.element('#journey-mentor-reply').innerHTML,'');
+});

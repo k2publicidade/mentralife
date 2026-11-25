@@ -1,4 +1,5 @@
 import {problem,randomCode} from './integration-utils.mjs';
+import {chargeFor,promoEligible} from './catalog.mjs';
 
 // Six7Pay (Paytime) PIX checkout. The API has no payment link and no webhook yet,
 // so the Worker creates the PIX, shows the code in the app and polls the status.
@@ -55,7 +56,9 @@ function qrImage(data){
 }
 
 const reference=order=>'mentra-'+order.id;
-const view=order=>order&&{id:order.id,plan:order.plan,amount:order.amount,
+// Orders created before periods existed granted 30 days.
+const daysOf=order=>Number.isInteger(order.days)&&order.days>0?order.days:30;
+const view=order=>order&&{id:order.id,plan:order.plan,amount:order.amount,days:daysOf(order),promotional:Boolean(order.promotional),
  status:order.status==='creating'?'unknown':order.status,pixCode:order.pix_code||null,qrImage:order.qr_image||null,paidAt:order.paid_at||null};
 const load=(db,id)=>db.prepare('SELECT * FROM six7pay_orders WHERE id=?').bind(id).first();
 const close=(db,id,status)=>db.prepare(`UPDATE six7pay_orders SET status=? WHERE id=? AND status IN ('creating','pending','unknown')`).bind(status,id).run();
@@ -66,15 +69,16 @@ async function saveQr(env,order,data){
  if(code||image)await env.DB.prepare('UPDATE six7pay_orders SET pix_code=COALESCE(?,pix_code),qr_image=COALESCE(?,qr_image) WHERE id=?').bind(code,image,order.id).run();
 }
 
+// Adds the order's days to the later of now and the current end, so renewing early loses nothing.
 async function activate(db,order,now){
  const id='six7pay:'+order.transaction_id;
  await db.batch([
-  db.prepare(`UPDATE subscriptions SET plan=CASE WHEN status='active' AND (current_period_end IS NULL OR current_period_end>?) AND ((plan='premium') OR (plan='plus' AND ?='essencial')) THEN plan ELSE ? END,status='active',current_period_end=MAX(COALESCE(current_period_end,0),?)+?
+  db.prepare(`UPDATE subscriptions SET plan=?,current_period_end=CASE WHEN status='active' THEN MAX(COALESCE(current_period_end,0),?) ELSE ? END+?,status='active'
    WHERE user_id=? AND (status!='active' OR current_period_end IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM payment_events WHERE event_id=?)`)
-   .bind(now,order.plan,order.plan,now,30*day,order.user_id,id),
+   .bind(order.plan,now,now,daysOf(order)*day,order.user_id,id),
   db.prepare(`INSERT OR IGNORE INTO payment_events(event_id,user_id,payload,created_at)
-   SELECT ?,?,json_object('provider','six7pay','order',?,'transaction',?,'status','PAID','amount',CAST(? AS INTEGER),'periodEnd',current_period_end),? FROM subscriptions WHERE user_id=?`)
-   .bind(id,order.user_id,order.id,order.transaction_id,order.amount,now,order.user_id),
+   SELECT ?,?,json_object('provider','six7pay','order',?,'transaction',?,'status','PAID','amount',CAST(? AS INTEGER),'days',CAST(? AS INTEGER),'promotional',CAST(? AS INTEGER),'periodEnd',current_period_end),? FROM subscriptions WHERE user_id=?`)
+   .bind(id,order.user_id,order.id,order.transaction_id,order.amount,daysOf(order),order.promotional?1:0,now,order.user_id),
   db.prepare(`UPDATE six7pay_orders SET status='paid',paid_at=COALESCE(paid_at,?) WHERE id=?`).bind(now,order.id)
  ]);
 }
@@ -113,23 +117,31 @@ async function refresh(env,order,minGap=10000){
  return load(db,order.id);
 }
 
+// The server alone decides the amount: regular price, or the promotional one for a first payment.
+// Amount, days and the promotional flag are stored in the order, so confirming it later grants
+// exactly what was sold even if the catalog changes in the meantime.
 export async function six7payCheckout(env,user,plan){
  if(!six7payConfigured(env))problem('Pagamento indisponível no momento.',503);
  if(!plan?.priceCents)problem('Este plano ainda não está disponível para compra.');
  const {DB:db}=env,now=Date.now(),id=randomCode().slice(0,24);
- const claim=await db.prepare(`INSERT INTO six7pay_orders(id,user_id,plan,amount,created_at,expires_at)
-  SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE user_id=? AND (status!='active' OR current_period_end<=?))
+ const {chargeCents,promotional}=chargeFor(plan,await promoEligible(db,user.id));
+ // Early renewal is allowed; only accounts granted access with no end date cannot buy.
+ const claim=await db.prepare(`INSERT INTO six7pay_orders(id,user_id,plan,amount,days,promotional,created_at,expires_at)
+  SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE user_id=? AND (status!='active' OR current_period_end IS NOT NULL))
   AND NOT EXISTS(SELECT 1 FROM six7pay_orders WHERE user_id=? AND status IN ('creating','pending','unknown') AND expires_at>?)
-  RETURNING *`).bind(id,user.id,plan.id,plan.priceCents,now,now+hour,user.id,now,user.id,now).first();
+  AND (?=0 OR NOT EXISTS(SELECT 1 FROM six7pay_orders WHERE user_id=? AND (status='paid' OR paid_at IS NOT NULL)))
+  RETURNING *`).bind(id,user.id,plan.id,chargeCents,plan.days,promotional?1:0,now,now+hour,user.id,user.id,now,promotional?1:0,user.id).first();
  if(!claim){
   const open=await db.prepare(`SELECT * FROM six7pay_orders WHERE user_id=? AND status IN ('creating','pending','unknown') AND expires_at>? ORDER BY created_at DESC`).bind(user.id,now).first();
-  if(open?.plan===plan.id&&open.amount!==plan.priceCents)problem('O preço deste plano mudou. Aguarde alguns minutos para gerar uma nova cobrança.',409);
+  if(open?.plan===plan.id&&(open.amount!==chargeCents||daysOf(open)!==plan.days))problem('O preço deste plano mudou. Aguarde alguns minutos para gerar uma nova cobrança.',409);
   if(open?.plan===plan.id)return {order:view(await refresh(env,open))};
-  problem(open?'Você já tem um PIX em aberto para outro plano. Pague-o ou aguarde alguns minutos.':'Seu plano já está ativo.',409);
+  if(open)problem('Você já tem um PIX em aberto para outro plano. Pague-o ou aguarde alguns minutos.',409);
+  const sub=await db.prepare('SELECT status,current_period_end FROM subscriptions WHERE user_id=?').bind(user.id).first();
+  problem(sub?.status==='active'&&sub.current_period_end==null?'Seu acesso foi liberado pela administração e não precisa de pagamento.':'O valor desta cobrança mudou. Atualize a página e tente novamente.',409);
  }
  // Idempotency-Key makes an accidental repeat return the original charge instead of a second one.
  // interest is required by the API even for PIX; STORE keeps the price shown to the customer.
- const created=await call(env,'POST','/paytime/transactions',{payment_type:'PIX',amount:plan.priceCents,interest:'STORE',reference_id:reference(claim)},reference(claim));
+ const created=await call(env,'POST','/paytime/transactions',{payment_type:'PIX',amount:claim.amount,interest:'STORE',reference_id:reference(claim)},reference(claim));
  if(created.status>=400&&created.status<500){
   await close(db,id,'failed');
   problem('A Six7Pay não gerou o PIX agora. Tente novamente em alguns minutos.',502);
@@ -150,9 +162,9 @@ export async function six7payOrder(env,user){
  return {order:order?view(await refresh(env,order)):null};
 }
 
-// A full refund removes the 30 days that payment granted, once, whatever started it.
+// A full refund removes the days that payment granted, once, whatever started it.
 async function applyRefund(db,order,amount,source,now=Date.now()){
- const id='six7pay-refund:'+order.transaction_id,period=30*day;
+ const id='six7pay-refund:'+order.transaction_id,period=daysOf(order)*day;
  await db.batch([
   db.prepare(`UPDATE subscriptions SET
    status=CASE WHEN current_period_end-?>? THEN 'active' ELSE 'canceled' END,
@@ -190,7 +202,7 @@ export async function six7payRefund(env,orderId){
 
 export async function six7payAdminList(env){
  const {DB:db}=env;
- const items=(await db.prepare(`SELECT o.id,o.plan,o.amount,o.status,o.created_at,o.paid_at,o.refunded_at,o.refund_amount,o.transaction_id,u.name,u.email
+ const items=(await db.prepare(`SELECT o.id,o.plan,o.amount,o.days,o.promotional,o.status,o.created_at,o.paid_at,o.refunded_at,o.refund_amount,o.transaction_id,u.name,u.email
   FROM six7pay_orders o LEFT JOIN users u ON u.id=o.user_id ORDER BY o.created_at DESC LIMIT 100`).all()).results;
  let balance=null;
  if(six7payReady(env)){const b=await call(env,'GET','/paytime/establishments/balance');if(b.status===200&&Number.isInteger(b.data?.balance))balance={available:b.data.balance,blocked:b.data.blocked_balance??0,total:b.data.total_balance??b.data.balance};}

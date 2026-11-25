@@ -48,7 +48,7 @@ test('Vercel routes proxy API with a server-only secret, disable caching and ret
  const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
  const api=config.routes.find(r=>r.src==='/api/(.*)');assert.equal(api.dest,'${MENTRA_WORKER_ORIGIN}/api/$1');assert.ok(api.env.includes('MENTRA_WORKER_ORIGIN'));
  assert.equal(api.transforms[0].args,'$VERCEL_ORIGIN_SECRET');assert.equal(api.transforms[0].op,'set');assert.deepEqual(api.transforms[0].env,['VERCEL_ORIGIN_SECRET']);
- assert.equal(config.routes[0].headers['Cache-Control'],'no-store');assert.equal(api.headers['x-vercel-enable-rewrite-caching'],'0');
+ assert.equal(config.routes[0].headers['Cache-Control'],'no-store');const statics=config.routes.find(r=>r.headers?.['Cache-Control']==='no-cache');assert.ok(statics,'arquivos estáticos revalidam em vez de baixar sempre');const staticPath=new RegExp('^'+statics.src+'$');assert.ok(staticPath.test('/app.js'));assert.ok(staticPath.test('/assets/mentra-logo-256.webp'));assert.ok(!staticPath.test('/api/state.json'));assert.ok(!staticPath.test('/index.html'));assert.equal(api.headers['x-vercel-enable-rewrite-caching'],'0');
  for(const path of ['admin','share','calendar-callback'])assert.ok(config.routes.some(r=>r.src==='/'+path&&r.dest==='/'+path+'.html'));
  assert.equal(config.outputDirectory,'.vercel-public');assert.equal(config.routes.at(-1).status,404);
 });

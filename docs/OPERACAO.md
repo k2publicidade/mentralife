@@ -1,10 +1,12 @@
 # Mentra Life — implantação e operação atual
 
-Atualização de 29/10/2026. O produto usa Cloudflare Workers com D1; nove migrações. Não existe publicação em produção confirmada. Consulte PENDENCIAS-PUBLICACAO.md antes de admitir clientes pagantes. A auditoria de código não substitui a implementação integral ou homologação dos 91 itens históricos.
+Atualização de 06/11/2026: [ações automáticas da IA publicadas e homologadas](ACOES-DA-IA.md) em https://mentralife.vercel.app. Onze migrações D1 aplicadas, backup criptografado preservado antes da publicação. Áudio via Workers AI e DeepSeek registrou almoço de R$ 35,90 no D1 remoto; tarefa por texto, persistência, reenvio sem duplicação/cota adicional e isolamento de duas contas sintéticas passaram no site. As contas de teste foram removidas. O domínio próprio continua com pendência de DNS. Os registros de 05/11 e roteiros históricos abaixo permanecem como contexto operacional.
+
+Atualização de 05/11/2026. Site em https://mentralife.vercel.app, API/D1 Cloudflare publicados, nove migrações aplicadas. DeepSeek individual publicado e testado com duas contas sintéticas no endereço público; 482 testes locais aprovados. PicPay escolhido (chave pendente); WhatsApp/Google sem aplicações e push configurado, mas sem ensaio em aparelho. Veja [relatório atualizado](RELATORIO-AUDITORIA-2026-11-05.md). Os roteiros históricos abaixo não certificam homologação completa dos 91 itens.
 
 ## Destino escolhido pelo proprietário
 
-Site na Vercel, inicialmente em `vercel.app`; API, D1, Workers AI e scheduler na Cloudflare. A integração foi preparada em vercel.json, scripts/build-vercel.mjs e server/hosting.mjs. O procedimento, variáveis e homologação estão em VERCEL-CLOUDFLARE.md. As seções Cloudflare abaixo continuam necessárias para o backend; não significam hospedar a interface lá como destino final. Ainda faltam autenticação, criação dos recursos e deploy.
+Site na Vercel, inicialmente em `vercel.app`; API, D1, Workers AI e scheduler na Cloudflare. A integração foi preparada em vercel.json, scripts/build-vercel.mjs e server/hosting.mjs. O procedimento, variáveis e homologação estão em VERCEL-CLOUDFLARE.md. As seções Cloudflare abaixo continuam necessárias para o backend; não significam hospedar a interface lá como destino final. Os recursos de produção estão publicados; staging, restauração e homologações adicionais continuam pendentes.
 
 ## Funcionamento entregue
 
@@ -84,9 +86,9 @@ Backup completo do D1 e restauração isolada com quarentena estão em BACKUP-RE
 
 ## IA, planos e cobrança — últimas etapas
 
-Os três planos e suas cotas/preços são configuráveis no administrador. Alterar cota vale imediatamente para assinantes existentes, conforme aviso da interface. A seleção de plano não cobra e mantém a assinatura pendente. O proprietário ainda definirá valores e condições finais.
+Os três planos e suas cotas/preços são configuráveis no administrador. Alterar cota vale imediatamente para assinantes existentes, conforme aviso da interface. A seleção de plano não cobra e mantém a assinatura pendente. Desde 25/11/2026 há um único plano com acesso completo (2.000 mensagens de IA/mês) vendido em três períodos: Mensal (30 dias, R$ 99,90), Trimestral (90 dias, R$ 199,90) e Anual (365 dias, R$ 499,90). Quem nunca teve pagamento confirmado paga o valor promocional no primeiro período (R$ 67, R$ 147 ou R$ 297). Os IDs internos `essencial`, `plus` e `premium` foram reaproveitados para Mensal, Trimestral e Anual. Pagamento por PIX via Six7Pay ([PAGAMENTOS-SIX7PAY.md](PAGAMENTOS-SIX7PAY.md)).
 
-DeepSeek é a penúltima etapa: cadastrar DEEPSEEK_API_KEY no Worker, conferir o modelo disponível e homologar pedidos/cotas/falhas com conta ativa. Notas opcionais informadas explicitamente pelo usuário são incluídas somente quando habilitadas. Saúde e documentos não são anexados automaticamente; a orientação de um plano envia os campos mostrados na solicitação e não executa ações.
+O chat e a orientação de planos usam DeepSeek Flash por meio do Worker. O modo de raciocínio estendido fica desativado para caber no orçamento de resposta do chat. Após publicar o Worker, cadastre a chave com `npx wrangler secret put DEEPSEEK_API_KEY --config wrangler.production.jsonc` e homologue os dois fluxos com uma conta ativa. Notas opcionais informadas explicitamente pelo usuário são incluídas somente quando habilitadas. Saúde e documentos não são anexados automaticamente; a orientação de um plano envia os campos mostrados na solicitação e não executa ações.
 
 Gateway é a última etapa. Há tabelas de assinaturas/eventos, mas faltam escolha do fornecedor, checkout, webhooks verificados e idempotentes, vigência, renovação, troca/cancelamento, inadimplência e reembolso, com sandbox completo. O retorno do navegador nunca será prova de pagamento. Não admitir cobrança real antes desse ciclo e dos critérios de publicação.
 

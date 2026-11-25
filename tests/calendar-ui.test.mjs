@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCalendarConnectUI} from '../dist/calendar-connect-ui.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
+test('app inicia autorização nativa e aguarda retorno sem redirecionar seu WebView',async t=>{
+ const previous={document:globalThis.document,native:globalThis.mentraNativeCalendar};let opened=0,body,markup='';
+ t.after(()=>{if(previous.document===undefined)delete globalThis.document;else globalThis.document=previous.document;if(previous.native===undefined)delete globalThis.mentraNativeCalendar;else globalThis.mentraNativeCalendar=previous.native;});
+ globalThis.document={querySelector:()=>({textContent:''})};globalThis.mentraNativeCalendar={connect:async url=>{assert.match(url,/^https:\/\/accounts.google.com\//);opened++;}};
+ const ui=createCalendarConnectUI({api:async()=>({connected:false,configured:true}),send:async(_path,data)=>{body=data;return {url:'https://accounts.google.com/o/oauth2/v2/auth?state=native.'+'a'.repeat(64)};},modal:(_title,value)=>markup=value});
+ await ui.open();ui.handleClick('gcal-connect');await tick();assert.equal(body.native,true);assert.equal(opened,1);assert.match(markup,/Calendário conectado/);
+});
 function fixture(t){
  const old={document:globalThis.document,FormData:globalThis.FormData};t.after(()=>{for(const [k,v]of Object.entries(old))if(v===undefined)delete globalThis[k];else globalThis[k]=v;});
  const error={textContent:''};globalThis.document={querySelector:()=>error};globalThis.FormData=class{constructor(form){this.value=form.values;}[Symbol.iterator](){return Object.entries(this.value)[Symbol.iterator]();}};

@@ -22,10 +22,10 @@ export async function calendarRoutes(req,env,user){
  if(req.method!=='DELETE'&&new URL(env.GOOGLE_CALENDAR_REDIRECT_URI).origin!==url.origin)problem('Endereço de retorno do calendário não corresponde ao sistema.',503);
  if(req.method!=='DELETE')await rate(db,user.id);
  if(path==='/api/calendar/connect'&&req.method==='POST'){
-  const b=await integrationBody(req);if(b.confirmed!==true)problem('Confirme a autorização de leitura do calendário.');
+  const b=await integrationBody(req);if(b.confirmed!==true)problem('Confirme a autorização de leitura do calendário.');if(b.native!==undefined&&typeof b.native!=='boolean')problem('Tipo de autorização inválido.');
   const state=random(),verifier=random(),challenge=base64(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(verifier)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   await db.batch([db.prepare('DELETE FROM calendar_oauth WHERE user_id=? OR expires_at<?').bind(user.id,Date.now()),db.prepare('INSERT INTO calendar_oauth(state_hash,user_id,session_hash,verifier,expires_at) VALUES(?,?,?,?,?)').bind(await digest(state),user.id,await sessionHash(req),await sealCalendar(env,user.id,verifier),Date.now()+600000)]);
-  const target=new URL('https://accounts.google.com/o/oauth2/v2/auth');target.search=new URLSearchParams({client_id:env.GOOGLE_CALENDAR_CLIENT_ID,redirect_uri:env.GOOGLE_CALENDAR_REDIRECT_URI,response_type:'code',scope,access_type:'offline',prompt:'consent select_account',state,code_challenge:challenge,code_challenge_method:'S256'}).toString();return response({url:target.href});
+  const target=new URL('https://accounts.google.com/o/oauth2/v2/auth');target.search=new URLSearchParams({client_id:env.GOOGLE_CALENDAR_CLIENT_ID,redirect_uri:env.GOOGLE_CALENDAR_REDIRECT_URI,response_type:'code',scope,access_type:'offline',prompt:'consent select_account',state:b.native?'native.'+state:state,code_challenge:challenge,code_challenge_method:'S256'}).toString();return response({url:target.href});
  }
  if(path==='/api/calendar/complete'&&req.method==='POST'){
   const b=await integrationBody(req);if(typeof b.state!=='string'||!/^[a-f0-9]{64}$/.test(b.state)||typeof b.code!=='string'||!b.code||b.code.length>4096)problem('Retorno de autorização inválido.');

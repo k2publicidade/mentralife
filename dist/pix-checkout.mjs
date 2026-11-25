@@ -9,8 +9,10 @@ function stop(){clearTimeout(timer);timer=null;}
 
 function markup(order,plans){
  const plan=plans.find(p=>p.id===order.plan)?.name||order.plan;
- const head=`<span class="eyebrow">PAGAMENTO VIA PIX</span><h2>${esc(plan)} · ${money(order.amount)}</h2>`;
- if(order.status==='paid')return `${head}<p class="pix-status pix-ok" role="status">Pagamento confirmado. Seu acesso foi liberado por 30 dias.</p>`;
+ const days=Number.isInteger(order.days)?order.days:30;
+ // Amount and days come from the order the server created; the client never sets them.
+ const head=`<span class="eyebrow">PAGAMENTO VIA PIX</span><h2>${esc(plan)} · ${money(order.amount)}</h2><p class="pix-summary">Libera ${days} dias de acesso${order.promotional?' · valor promocional do primeiro período':''}.</p>`;
+ if(order.status==='paid')return `${head}<p class="pix-status pix-ok" role="status">Pagamento confirmado. Seu acesso foi liberado por mais ${days} dias.</p>`;
  if(order.status==='canceled'||order.status==='failed')return `${head}<p class="pix-status" role="status">${order.status==='failed'?'Não foi possível gerar este PIX.':'Este PIX expirou sem pagamento.'} Escolha o plano novamente para gerar um novo código.</p>`;
  if(!order.pixCode&&!order.qrImage)return `${head}<p class="pix-status" role="status">Gerando seu PIX. Isso leva alguns segundos…</p>`;
  return `${head}<div class="pix-body">${order.qrImage?`<img class="pix-qr" src="${esc(order.qrImage)}" width="220" height="220" alt="QR Code do PIX">`:''}<div class="pix-steps"><p>Abra o app do seu banco, escolha <b>PIX</b> e ${order.qrImage?'leia o QR Code ou ':''}use o código copia e cola.</p>${order.pixCode?`<label class="pix-code">PIX copia e cola<textarea readonly rows="4" spellcheck="false">${esc(order.pixCode)}</textarea></label><button type="button" class="primary" data-pix-copy>Copiar código PIX</button>`:''}<p class="pix-status" role="status">Aguardando o pagamento. Esta tela atualiza sozinha quando o banco confirmar.</p></div></div>`;

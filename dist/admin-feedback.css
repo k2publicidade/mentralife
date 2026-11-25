@@ -1,0 +1,8 @@
+.admin-feedback-section{margin-top:42px}
+.admin-feedback-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:12px}
+.admin-feedback-list p{margin:10px 0;white-space:pre-wrap;line-height:1.6}
+.admin-feedback-meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:#64756b}
+.admin-feedback-kind{font-weight:700;font-size:12px;padding:4px 10px;border-radius:999px;background:#e6efe2;color:#285c49}
+.admin-feedback-kind.is-problema{background:#fbe9e4;color:#a2412c}
+.admin-feedback-kind.is-elogio{background:#f7efda;color:#8a6a1f}
+.admin-feedback-section .button-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}

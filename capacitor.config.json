@@ -1,0 +1,24 @@
+{
+  "appId": "app.mentralife.mobile",
+  "appName": "Mentra Life",
+  "webDir": ".mobile-public",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "alert"
+      ]
+    }
+  }
+}

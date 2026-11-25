@@ -15,16 +15,17 @@ export async function hostedRequest(request,env){
  let origin;try{origin=httpsOrigin(env.PUBLIC_ORIGIN);}catch{throw unavailable();}
  if(!/^[a-f0-9]{64}$/.test(env.VERCEL_ORIGIN_SECRET||''))throw unavailable();
  const url=new URL(request.url);
- // Meta calls this signed webhook directly; the health endpoint contains no private data.
- if(url.pathname==='/api/health'||url.pathname==='/api/whatsapp/webhook')return request;
+ // Meta and the WhatsApp gateway call these signed endpoints directly; the health endpoint contains no private data.
+ if(url.pathname==='/api/health'||url.pathname==='/api/whatsapp/webhook'||url.pathname==='/api/whatsapp/gateway')return request;
  if(!url.pathname.startsWith('/api/'))return request;
  const supplied=request.headers.get('x-mentra-origin-secret')||'';
  if(supplied.length!==64||!await sameSecret(supplied,env.VERCEL_ORIGIN_SECRET))throw Object.assign(Error('Acesso ao backend não autorizado.'),{status:403});
  const headers=new Headers(request.headers);headers.delete('x-mentra-origin-secret');
  // Only trust visitor metadata after authenticating the Vercel routing layer.
- const ip=headers.get('x-real-ip')||'';
+ const forwarded=(headers.get('x-vercel-forwarded-for')||'').split(',')[0].trim();
+ const ip=forwarded||(headers.get('x-real-ip')||'').trim();
  headers.delete('CF-Connecting-IP');
- if(ip.length<=64&&/^[a-fA-F0-9:.]+$/.test(ip))headers.set('CF-Connecting-IP',ip);
+ if(ip&&ip.length<=64&&/^[a-fA-F0-9:.]+$/.test(ip))headers.set('CF-Connecting-IP',ip);
  url.protocol='https:';const publicUrl=new URL(origin);url.host=publicUrl.host;
  return new Request(url, new Request(request,{headers}));
 }

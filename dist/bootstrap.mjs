@@ -1,3 +1,4 @@
+import {saveFile} from './file-save.mjs';
 import {accountRecoveryJson} from './backup.mjs';
 import {setTimeZone} from './time.mjs';
 import {startPlatform,api,send} from './platform.mjs';
@@ -5,26 +6,38 @@ import {accountState} from './account-state.mjs';
 import {openDraftStore,memoryDraftStore} from './draft-store.mjs';
 import {createSyncController} from './sync-controller.mjs';
 import {installSyncUI} from './sync-ui.mjs';
+import {showPix,resumePix} from './pix-checkout.mjs';
 try{
  const platform=await startPlatform();
  if(platform){
-  platform.data=accountState(platform.data,platform.user);window.mentraPlatform=platform;setTimeZone(platform.data.profile.timeZone||'');
+  platform.data=accountState(platform.data,platform.user);window.mentraPlatform=platform;void globalThis.mentraNativeCalendar?.resume().catch(()=>{});void globalThis.mentraNativePush?.resume().catch(()=>{});setTimeZone(platform.data.profile.timeZone||'');
   let store;try{store=await openDraftStore();}catch{store=memoryDraftStore();}
   let syncUI;
   const sync=createSyncController({userId:platform.user.id,revision:platform.revision,store,write:payload=>api('state',{method:'PUT',body:JSON.stringify(payload),signal:AbortSignal.timeout(20000)}),onStatus:value=>syncUI?.update(value)});
   window.mentraSave=sync;
   await import('./app.js');
   syncUI=await installSyncUI({sync,store,platform,api,send});syncUI.update(sync.status());
+  const pix={plans:platform.plans||[],api,onPaid:()=>location.reload()};
+  const resume=()=>{if(platform.paymentsConfigured&&!globalThis.mentraNative&&location.hash.startsWith('#/planos'))setTimeout(()=>resumePix(pix),60);};
+  window.addEventListener('hashchange',resume);resume();
   document.addEventListener('submit',async event=>{
    const form=event.target;if(!['platform-password','platform-delete'].includes(form.id))return;event.preventDefault();const payload=Object.fromEntries(new FormData(form));
-   try{await syncUI.runAfterSync(async()=>{await send(form.id==='platform-password'?'account/password':'account',payload,form.id==='platform-password'?'POST':'DELETE');if(form.id==='platform-delete')await syncUI.clearCopies();location.reload();});}
+   try{await syncUI.runAfterSync(async()=>{await send(form.id==='platform-password'?'account/password':'account',payload,form.id==='platform-password'?'POST':'DELETE');await syncUI.clearCopies();if(form.id==='platform-delete')await globalThis.mentraNativeClearCache?.();try{sessionStorage.setItem('mentra-auth-notice',JSON.stringify({message:form.id==='platform-password'?'Senha alterada. Entre com a nova senha.':'Conta excluída. Obrigado por ter usado a Mentra.',at:Date.now()}));}catch{}location.reload();});}
    catch(error){const target=document.querySelector('#account-error');if(target)target.textContent=error.message;}
   },true);
   document.addEventListener('click',async event=>{
-   if(event.target.closest('[data-account="backup"]')){try{await syncUI.runAfterSync(async()=>{const snapshot=await api('state'),raw=accountRecoveryJson(snapshot,platform.user),url=URL.createObjectURL(new Blob([raw],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='mentra-copia-restauracao.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});}catch(error){const target=document.querySelector('#account-error');if(target)target.textContent=error.message;}return;}
-   if(event.target.closest('[data-account="export"]')){try{await syncUI.runAfterSync(async()=>{const data=await api('account/export'),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='mentra-meus-dados.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});}catch(error){const target=document.querySelector('#account-error');if(target)target.textContent=error.message;}return;}
+   if(event.target.closest('[data-account="backup"]')){try{await syncUI.runAfterSync(async()=>{const snapshot=await api('state');await saveFile('mentra-copia-restauracao.json',accountRecoveryJson(snapshot,platform.user),'application/json');});}catch(error){const target=document.querySelector('#account-error');if(target)target.textContent=error.message;}return;}
+   if(event.target.closest('[data-account="export"]')){try{await syncUI.runAfterSync(async()=>{const data=await api('account/export');await saveFile('mentra-meus-dados.json',JSON.stringify(data,null,2),'application/json');});}catch(error){const target=document.querySelector('#account-error');if(target)target.textContent=error.message;}return;}
    const button=event.target.closest('[data-platform-plan]');if(!button)return;button.disabled=true;
-   try{await syncUI.runAfterSync(async()=>{await send('subscription',{plan:button.dataset.platformPlan});location.reload();});}catch(error){document.querySelector('.sync-status').textContent=error.message;}finally{if(button.isConnected)button.disabled=false;}
+   const feedback=document.querySelector('#payment-error');if(feedback)feedback.textContent='';
+   try{await syncUI.runAfterSync(async()=>{
+    const payload={plan:button.dataset.platformPlan};
+    if(!platform.paymentsConfigured){await send('subscription',payload);location.reload();return;}
+    if(globalThis.mentraNative)throw Error('A contratação não está disponível no aplicativo.');
+    const {order}=await send('six7pay/checkout',payload);
+    showPix(order,pix);
+    document.querySelector('#payment-pix')?.scrollIntoView({behavior:'smooth',block:'center'});
+   });}catch(error){if(feedback)feedback.textContent=error.message;}finally{if(button.isConnected)button.disabled=false;}
   });
  }
 }catch(error){document.querySelector('#app').textContent='Não foi possível abrir sua conta: '+error.message;}

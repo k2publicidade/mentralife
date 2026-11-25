@@ -70,7 +70,7 @@ export function validateFinancialEntry(state, draft) {
   entry.category = String(entry.category || 'Outros').trim().slice(0, 80) || 'Outros';
   if (!entry.title) errors.push('Informe uma descrição.');
   if (!['income', 'expense', 'transfer'].includes(entry.type)) errors.push('Tipo de lançamento inválido.');
-  if (!positiveCents(entry.cents)) errors.push('O valor precisa ser positivo, em centavos inteiros.');
+  if (!positiveCents(entry.cents)) errors.push('Informe um valor positivo no formato 1.234,56 (vírgula para os centavos).');
   if (!validDate(entry.date)) errors.push('Informe uma data válida.');
   if (!['actual', 'estimated'].includes(entry.status)) errors.push('Situação inválida.');
   if (!PAYMENT_METHODS.includes(entry.paymentMethod) || entry.installments || entry.creditCardId) errors.push('Cartão de crédito e parcelamento ainda não são suportados. Use uma forma de pagamento à vista.');
@@ -135,7 +135,7 @@ export function createObligation(state, draft) {
   obligation.title = String(obligation.title || '').trim().slice(0, 300);
   if (!obligation.title) errors.push('Informe uma descrição.');
   if (!['payable', 'receivable'].includes(obligation.kind)) errors.push('Escolha a pagar ou a receber.');
-  if (!positiveCents(obligation.cents)) errors.push('O valor precisa ser positivo, em centavos inteiros.');
+  if (!positiveCents(obligation.cents)) errors.push('Informe um valor positivo no formato 1.234,56 (vírgula para os centavos).');
   if (!validDate(obligation.dueDate)) errors.push('Informe um vencimento válido.');
   if (obligation.accountId && !activeAccount(next, obligation.accountId)) errors.push('Escolha uma conta ativa.');
   if (draft.settledCents || draft.settlementIds?.length || draft.status && draft.status !== 'open') errors.push('Crie o compromisso em aberto e use a baixa para registrar pagamentos.');
@@ -288,7 +288,7 @@ export function saveBudget(state, draft) {
   if (draft.id && next.budgets.some(b => b.id !== draft.id && b.month === budget.month && normal(b.category) === normal(budget.category) && (b.accountId || null) === (budget.accountId || null))) errors.push('Já existe um orçamento para esta categoria, conta e mês.');
   if (errors.length) return fail(state, errors);
   const match = next.budgets.find(b => b.id === budget.id || b.month === budget.month && normal(b.category) === normal(budget.category) && (b.accountId || null) === (budget.accountId || null));
-  if (match) {budget.id = match.id; next.budgets = next.budgets.map(b => b.id === match.id ? budget : b);}
+  if (match) {budget.id = match.id; budget.category = match.category; next.budgets = next.budgets.map(b => b.id === match.id ? budget : b);}
   else next.budgets.push(budget);
   return {ok: true, state: next, budget};
 }
@@ -421,4 +421,28 @@ export function toCsv(rows, columns) {
     return `"${text.replaceAll('"', '""')}"`;
   };
   return '\uFEFF' + [keys.map(encode).join(';'), ...rows.map(row => keys.map(key => encode(row[key])).join(';'))].join('\r\n');
+}
+
+
+/** Exclui um lançamento manual. Baixas de compromisso são ajustadas pelo próprio compromisso. */
+export function deleteRecord(state, recordId) {
+  const next = migrateFinanceState(state);
+  const record = next.records.find(r => r.id === recordId);
+  if (!record) return fail(state, 'Lançamento não encontrado.');
+  if (record.obligationId) return fail(state, 'Este lançamento veio de uma baixa. Ajuste pelo compromisso em Pagar e receber.');
+  next.records = next.records.filter(r => r.id !== recordId);
+  if (Array.isArray(next.documents)) next.documents = next.documents.map(d => d && d.recordId === recordId ? {...d, recordId: null} : d);
+  return {ok: true, state: next, record};
+}
+
+/** Cancela um compromisso ainda sem baixa (fica no histórico como cancelado). */
+export function cancelObligation(state, obligationId) {
+  const next = migrateFinanceState(state);
+  const obligation = next.obligations.find(o => o.id === obligationId);
+  if (!obligation) return fail(state, 'Compromisso não encontrado.');
+  if (obligation.status === 'cancelled') return {ok: true, state: next, obligation, duplicate: true};
+  if (obligation.settledCents > 0) return fail(state, 'Este compromisso já tem baixa registrada e não pode ser cancelado.');
+  obligation.status = 'cancelled';
+  obligation.cancelledAt = new Date().toISOString();
+  return {ok: true, state: next, obligation};
 }
