@@ -35,6 +35,8 @@ function stub(t,handlers){
  t.mock.method(globalThis,'fetch',async(url,options={})=>{
   const {pathname,search}=new URL(url),method=options.method||'GET';
   calls.push({method,path:pathname+search,headers:options.headers||{},body:options.body?JSON.parse(options.body):null});
+  // Cloudflare Workers throw on redirect:'error'; only follow/manual exist at the edge.
+  assert.equal(options.redirect,'manual');
   if(!String(url).startsWith('https://painel.six7pay.com.br/'))return new Response('{}',{status:404});
   assert.equal(options.headers['x-api-key'],KEY);
   for(const [pattern,handler] of handlers)if(pattern.test(method+' '+pathname))return handler(calls.at(-1));
@@ -262,4 +264,15 @@ test('Six7Pay: quem pagou nos planos antigos paga o valor regular; acesso libera
  DB.sql.prepare("UPDATE six7pay_orders SET status='canceled' WHERE status!='paid'").run();
  DB.sql.prepare("UPDATE subscriptions SET status='active',current_period_end=NULL").run();
  assert.equal((await call('six7pay/checkout',{plan:'essencial'},cookie)).status,409);
+});
+
+test('Six7Pay: redirecionamento nunca é seguido; a cobrança fica incerta e não é reenviada',async t=>{
+ const {DB,call,cookie}=await setup(t);
+ const calls=stub(t,[[/^POST \/paytime\/transactions$/,()=>new Response(null,{status:302,headers:{Location:'https://outro.example.test/'}})]]);
+ const {order}=await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json();
+ assert.equal(order.status,'unknown');assert.equal(order.amount,6700);
+ assert.equal((await (await call('six7pay/checkout',{plan:'essencial'},cookie)).json()).order.id,order.id);
+ assert.equal(calls.filter(c=>c.method==='POST').length,1);
+ assert.ok(calls.every(c=>c.path.startsWith('/paytime/')));
+ assert.equal(DB.sql.prepare('SELECT transaction_id FROM six7pay_orders').get().transaction_id,null);
 });

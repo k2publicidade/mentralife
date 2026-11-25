@@ -17,12 +17,19 @@ const route=path=>path.replace(/\?.*$/,'').replace(/\/(?=[A-Za-z_-]*\d)[A-Za-z0-
 async function call(env,method,path,body,idempotencyKey){
  let res;
  try{
-  res=await fetch(BASE+path,{method,redirect:'error',signal:AbortSignal.timeout(15000),
+  // Workers reject redirect:'error' (it throws on every call); 'manual' plus the check below
+  // keeps the API key from ever being sent to another host.
+  res=await fetch(BASE+path,{method,redirect:'manual',signal:AbortSignal.timeout(15000),
    headers:{Accept:'application/json','x-api-key':env.SIX7PAY_API_KEY,
     ...(body?{'Content-Type':'application/json'}:{}),...(idempotencyKey?{'Idempotency-Key':idempotencyKey}:{})},
    body:body?JSON.stringify(body):undefined});
- }catch{
-  console.warn('six7pay_unavailable',{method,path:route(path)});
+ }catch(error){
+  // The reason (timeout, refused connection, redirect) is logged; never the key or the body.
+  console.warn('six7pay_unavailable',{method,path:route(path),reason:String(error?.name||'')+': '+String(error?.message||'').slice(0,160)});
+  return {status:0,data:null};
+ }
+ if(res.status>=300&&res.status<400){
+  console.warn('six7pay_redirect',{method,path:route(path),status:res.status});
   return {status:0,data:null};
  }
  let data=null;
