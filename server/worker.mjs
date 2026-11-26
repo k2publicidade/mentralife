@@ -1,7 +1,7 @@
 import {nativePushRoutes,processNativePush} from './native-push.mjs';
 import {activeAccount,limitedBytes} from './integration-utils.mjs';
 import {chat} from './chat.mjs';
-import {hostedRequest} from './hosting.mjs';
+import {hostedRequest,publicOrigins} from './hosting.mjs';
 import {calendarRoutes} from './calendar.mjs';
 import {documentShareRoutes,shareRevocationStatement} from './document-shares.mjs';
 import {whatsappWebhook,whatsappRoutes,processWhatsAppInbox,whatsappConfigured} from './whatsapp.mjs';
@@ -51,7 +51,7 @@ export async function handle(req,env){
  if(await db.prepare("SELECT key FROM product_settings WHERE key='restore_quarantine'").first())return json({error:'Sistema em recuperação. Tente novamente mais tarde.'},503,{'Retry-After':'300'});
  if(path==='/api/whatsapp/webhook')return whatsappWebhook(req,env);
  if(path==='/api/whatsapp/gateway')return whatsappGateway(req,env,(await loadPlans(db)).plans);
- if(!['GET','HEAD'].includes(req.method)&&req.headers.get('origin')!==url.origin) return json({error:'Origem inválida.'},403);
+ if(!['GET','HEAD'].includes(req.method)&&!publicOrigins(env,url).has(req.headers.get('origin'))) return json({error:'Origem inválida.'},403);
  const catalog=await loadPlans(db),PLANS=catalog.plans;
  // Prices shown are what this visitor would pay now: promotional for anyone who never paid.
  if(path==='/api/plans'&&req.method==='GET'){const viewer=await session(req,db);return json({plans:pricedPlans(PLANS,await promoEligible(db,viewer?.id)),paymentsConfigured:six7payConfigured(env)});}

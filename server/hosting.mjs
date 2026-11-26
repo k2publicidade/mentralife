@@ -10,6 +10,13 @@ async function sameSecret(a,b){
  for(let i=0;i<x.length;i++)different|=x[i]^y[i];return different===0;
 }
 const unavailable=()=>Object.assign(Error('Configuração de hospedagem incompleta.'),{status:503});
+// The same Vercel project answers on more than one domain (the vercel.app address and the custom domain).
+// PUBLIC_ORIGIN_ALIASES lists the extra ones, comma-separated; writes from them pass the same-origin check.
+export function publicOrigins(env,url){
+ const origins=new Set([url.origin]);
+ for(const value of String(env.PUBLIC_ORIGIN_ALIASES||'').split(',').map(v=>v.trim()).filter(Boolean)){try{origins.add(httpsOrigin(value));}catch{throw unavailable();}}
+ return origins;
+}
 export async function hostedRequest(request,env){
  if(!env.PUBLIC_ORIGIN&&!env.VERCEL_ORIGIN_SECRET)return request;
  let origin;try{origin=httpsOrigin(env.PUBLIC_ORIGIN);}catch{throw unavailable();}
