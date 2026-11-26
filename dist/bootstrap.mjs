@@ -7,6 +7,7 @@ import {openDraftStore,memoryDraftStore} from './draft-store.mjs';
 import {createSyncController} from './sync-controller.mjs';
 import {installSyncUI} from './sync-ui.mjs';
 import {showPix,resumePix} from './pix-checkout.mjs';
+import {installPlanPrompt} from './plan-prompt.mjs';
 try{
  const platform=await startPlatform();
  if(platform){
@@ -19,6 +20,8 @@ try{
   syncUI=await installSyncUI({sync,store,platform,api,send});syncUI.update(sync.status());
   // Confirmação de ações que recarregam a página sem sair da conta (arrependimento, apagar dados).
   try{const raw=sessionStorage.getItem('mentra-account-notice');if(raw){sessionStorage.removeItem('mentra-account-notice');const note=JSON.parse(raw);if(Date.now()-note.at<120000)setTimeout(()=>{const box=document.querySelector('#account-error');if(box){box.textContent=note.message;box.classList.add('form-success');}},300);}}catch{}
+  // Sem plano ativo, toda entrada na conta (login ou abertura do app) mostra o convite para ativar o plano.
+  installPlanPrompt(platform);
   const pix={plans:platform.plans||[],api,onPaid:()=>location.reload()};
   const resume=()=>{if(platform.paymentsConfigured&&!globalThis.mentraNative&&location.hash.startsWith('#/planos'))setTimeout(()=>resumePix(pix),60);};
   window.addEventListener('hashchange',resume);resume();
