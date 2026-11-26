@@ -55,7 +55,7 @@ test('app: o passe editorial fica restrito às telas internas e não mexe em mov
   assert.ok(html.indexOf('editorial.css') > html.indexOf('portal.css'));
   assert.ok(!/@keyframes|animation:/.test(css), 'sem novas animações em telas de uso diário');
   for (const rule of css.split('}').map(part => part.split('{')[0]).filter(sel => sel.includes('.') && !sel.includes('@')))
-    assert.ok(rule.includes('.workspace'), 'fora do escopo: ' + rule.trim().slice(0, 60));
+    assert.ok(/\.workspace|\.sidebar/.test(rule), 'fora do escopo: ' + rule.trim().slice(0, 60));
 });
 
 test('portal: a imagem da Mentra não usa filter, que custava pintura a cada quadro', () => {

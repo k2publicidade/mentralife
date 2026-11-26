@@ -143,6 +143,7 @@
 .portal.site .portal-access{grid-template-columns:minmax(0,.9fr) minmax(0,1fr);gap:clamp(28px,5vw,88px);margin:0;padding:clamp(24px,4.4vw,64px)!important;border-radius:clamp(24px,3vw,40px)!important;box-shadow:0 44px 80px -48px #173e3240;scroll-margin-top:96px}
 .portal.site .portal-access h2{margin:0 0 14px;font-family:var(--serif);font-weight:400;font-size:clamp(30px,3.4vw,48px);line-height:1.08;letter-spacing:-.025em}
 .portal.site .portal-access>div>p:not(.eyebrow){color:var(--muted)}
+.portal.site .portal-access>div{align-self:center}
 .portal.site .portal-access :is(input,select){min-height:54px;padding:13px 16px;border-color:#d3dbcd;border-radius:14px;background:#f7f6f1;transition:border-color .2s ease,background-color .2s ease,box-shadow .2s ease}
 .portal.site .portal-access :is(input,select):focus{background:#fff}
 .portal.site .portal-access form>.primary{min-height:56px;font-size:15px}

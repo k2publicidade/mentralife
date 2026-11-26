@@ -47,3 +47,19 @@
 .workspace .portal-plans>.card>.plan-price{min-height:4.4em;align-content:start}
 .workspace .portal-plans>.card>.plan-price small{flex-basis:100%}
 @media(max-width:760px){.workspace .menu-card{padding:14px 16px}.workspace .menu-card>svg:first-child{padding:9px;border-radius:12px}}
+
+/* Hoje abre direto no que importa: a abertura fica compacta no desktop (era ~410 px de altura). */
+@media(min-width:761px){
+ .workspace .home-intro.hero-has-mascot{min-height:0;padding:28px 36px 30px}
+ .workspace .home-intro h1{font-size:clamp(34px,3vw,44px);line-height:1.05}
+ .workspace .home-intro .intro-description{margin-top:10px}
+ .workspace .home-intro .intro-actions{margin-top:16px}
+ /* A busca já está na barra superior; o segundo botão no cartão só repetia o atalho. */
+ .workspace .attention-search{display:none}
+}
+/* "Conta conectada" já aparece na faixa da conta; o segundo indicador era redundante. */
+body:has(.platform-toolbar) .workspace .top-actions .demo-indicator{display:none}
+/* A lista de áreas cabe inteira em telas de notebook: a frase decorativa cede o lugar, e o fim da lista esmaece ao rolar. */
+@media(min-width:761px) and (max-height:1000px){.sidebar .side-note{display:none}}
+.sidebar>nav{-webkit-mask-image:linear-gradient(#000 calc(100% - 20px),transparent);mask-image:linear-gradient(#000 calc(100% - 20px),transparent);padding-bottom:16px}
+@media(min-width:761px){.workspace button.attention-search{display:none!important}.workspace .home-intro .intro-actions{margin-top:8px}}
