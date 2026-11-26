@@ -33,6 +33,9 @@
     {"src": "/admin", "dest": "/admin.html"},
     {"src": "/share", "dest": "/share.html"},
     {"src": "/calendar-callback", "dest": "/calendar-callback.html"},
+    {"src": "/termos", "dest": "/termos.html"},
+    {"src": "/privacidade", "dest": "/privacidade.html"},
+    {"src": "/excluir-conta", "dest": "/excluir-conta.html"},
     {"src": "/", "dest": "/index.html"},
     {"handle": "filesystem"},
     {"src": "/.*", "status": 404}

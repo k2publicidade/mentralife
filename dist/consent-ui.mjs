@@ -1,0 +1,8 @@
+// Consentimento específico e destacado (LGPD, arts. 11, I e 33, VIII), pedido no primeiro uso.
+import {LEGAL_LINKS} from './legal.mjs';
+const COPY={
+ ai:{eyebrow:'MENTRA IA · AUTORIZAÇÃO',title:'Antes de conversar com a Mentra IA',text:'Para responder, a Mentra envia sua pergunta (ou o áudio transcrito) e um recorte da sua organização, como compromissos, tarefas e totais financeiros, à DeepSeek, uma empresa na China que gera as respostas. Dados de saúde, documentos originais e senhas nunca são enviados. Você pode revogar esta autorização quando quiser em Meu espaço → Privacidade.',action:'Autorizar e usar a Mentra IA'},
+ health:{eyebrow:'SAÚDE E BEM-ESTAR · AUTORIZAÇÃO',title:'Seus dados de saúde, só para você',text:'Consultas, medicamentos, sono e disposição são dados pessoais sensíveis. Com sua autorização, guardamos esses registros na sua conta apenas para organizar e mostrar para você. Eles não vão para a IA nem para terceiros. Você pode revogar a autorização e apagar os registros quando quiser em Meu espaço → Privacidade.',action:'Autorizar e abrir Saúde e bem-estar'}
+};
+export const consentMissing=kind=>{const user=globalThis.mentraPlatform?.user;return Boolean(user&&user[kind==='ai'?'aiConsent':'healthConsent']!==true);};
+export function consentGateMarkup(kind){const c=COPY[kind];return `<section class="card consent-gate" data-consent-gate="${kind}"><span class="eyebrow">${c.eyebrow}</span><h2>${c.title}</h2><p>${c.text}</p><button class="primary" data-consent="${kind}" data-value="true">${c.action}</button><p class="form-help">Detalhes no <a href="${LEGAL_LINKS.privacy}">Aviso de Privacidade</a>.</p><p id="account-error" role="alert" class="form-error"></p></section>`;}

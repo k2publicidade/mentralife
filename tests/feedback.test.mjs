@@ -14,7 +14,7 @@ async function environment() {
   }
   const users = [];
   for (const name of ['ana', 'bia', 'chefe']) {
-    const r = await call('register', {method: 'POST', data: {name, email: name + '@feedback.test', password: 'synthetic-feedback-password', plan: 'plus'}});
+    const r = await call('register', {method: 'POST', data: {name, email: name + '@feedback.test', password: 'synthetic-feedback-password', plan: 'plus', acceptTerms: true}});
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const id = DB.sql.prepare('SELECT id FROM users WHERE email=?').get(name + '@feedback.test').id;
     users.push({id, cookie: r.cookie});

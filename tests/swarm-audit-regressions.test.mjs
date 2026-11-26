@@ -32,7 +32,7 @@ test('EC-01: auto-merge mescla mensagens simultâneas do App e do WhatsApp (com 
   assert.equal(merged.data.messages[4].channel, 'whatsapp');
 });
 
-test('SEC-02 & EC-03: exclusão de conta permite assinatura expirada por prazo e bloqueia ativa vigente', async () => {
+test('SEC-02 & EC-03: exclusão de conta é permitida com assinatura vigente e guarda os pagamentos à parte (App Store 5.1.1(v))', async () => {
   const DB = integrationDB();
   const origin = 'https://mentra.test';
   const env = {DB};
@@ -46,13 +46,17 @@ test('SEC-02 & EC-03: exclusão de conta permite assinatura expirada por prazo e
   };
   try {
     const pw = 'synthetic-delete-expired-2026';
-    const reg = await call('register', {method: 'POST', data: {name: 'Expirada', email: 'expirada@mentra.test', password: pw, plan: 'plus'}});
+    const reg = await call('register', {method: 'POST', data: {name: 'Expirada', email: 'expirada@mentra.test', password: pw, plan: 'plus', acceptTerms: true}});
     assert.equal(reg.status, 200);
     DB.sql.prepare("UPDATE subscriptions SET status='active', current_period_end=? WHERE user_id=?").run(Date.now() + 86400000, reg.body.user.id);
-    assert.equal((await call('account', {method: 'DELETE', cookie: reg.cookie, data: {password: pw}})).status, 409);
-    DB.sql.prepare("UPDATE subscriptions SET status='active', current_period_end=? WHERE user_id=?").run(Date.now() - 60000, reg.body.user.id);
+    DB.sql.prepare("INSERT INTO payment_events(event_id,user_id,payload,created_at) VALUES('legacy:1',?,'{\"amount\":4700}',?)").run(reg.body.user.id, Date.now());
+    assert.equal((await call('account', {method: 'DELETE', cookie: reg.cookie, data: {password: 'senha-errada-123456'}})).status, 403);
     assert.equal((await call('account', {method: 'DELETE', cookie: reg.cookie, data: {password: pw}})).status, 200);
     assert.equal(DB.sql.prepare('SELECT COUNT(*) AS n FROM users WHERE id=?').get(reg.body.user.id).n, 0);
+    const kept = DB.sql.prepare('SELECT * FROM retained_payments WHERE former_user_id=?').all(reg.body.user.id);
+    assert.equal(kept.length, 1);
+    assert.equal(kept[0].email, 'expirada@mentra.test');
+    assert.equal(JSON.parse(kept[0].record).payload.amount, 4700);
   } finally {
     DB.sql.close();
   }
@@ -79,7 +83,7 @@ test('SEC-03 & SEC-06.5: x-vercel-forwarded-for prevalece, login limita falhas p
   };
   try {
     const pw = 'synthetic-bruteforce-2026';
-    const reg = await call('register', {data: {name: 'Alvo', email: 'alvo@mentra.test', password: pw, plan: 'plus'}});
+    const reg = await call('register', {data: {name: 'Alvo', email: 'alvo@mentra.test', password: pw, plan: 'plus', acceptTerms: true}});
     assert.equal(reg.status, 200);
     assert.ok(DB.sql.prepare("SELECT key FROM rate_limits WHERE key LIKE 'auth:198.51.100.42:%'").get());
 
@@ -124,7 +128,7 @@ test('SEC-05 & SEC-03.3: PARAR no gateway descarta integration_inbox e readiness
     return {status: r.status, body: await r.json()};
   };
   try {
-    const reg = await call('register', {method: 'POST', data: {name: 'Inbox', email: 'inbox@mentra.test', password: 'synthetic-inbox-pw-2026', plan: 'plus'}});
+    const reg = await call('register', {method: 'POST', data: {name: 'Inbox', email: 'inbox@mentra.test', password: 'synthetic-inbox-pw-2026', plan: 'plus', acceptTerms: true}});
     DB.sql.prepare("UPDATE subscriptions SET status='active'").run();
     await gw({event: 'status', state: 'open', number: '5511900000000'});
     const code = await call('whatsapp/link', {method: 'POST', cookie: reg.cookie, data: {consent: true}});

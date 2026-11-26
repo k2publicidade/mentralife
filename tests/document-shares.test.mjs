@@ -14,7 +14,7 @@ async function fixture(){
   const r=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:requestOrigin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined}),env);
   return {status:r.status,body:r.headers.get('content-type')?.includes('application/json')?await r.json():new Uint8Array(await r.arrayBuffer()),cookie:r.headers.get('set-cookie')?.split(';')[0],headers:r.headers};
  }
- const users=[];for(const name of ['Owner','Recipient','Other']){const r=await call('register',{method:'POST',body:{name,email:name.toLowerCase()+'@shares.test',password,plan:'plus'}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie});}
+ const users=[];for(const name of ['Owner','Recipient','Other']){const r=await call('register',{method:'POST',body:{name,email:name.toLowerCase()+'@shares.test',password,plan:'plus',acceptTerms:true}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie});}
  const state=accountState(null,users[0]);state.documents=[{id:'doc-private',title:'Contrato privado',originalName:'contrato.png',fileData:bytes.toString('base64'),mime:'image/png',ext:'PNG',fileSize:bytes.length,note:'Anotação que não deve sair',extractedText:'OCR que não deve sair',trashed:false}];state.tasks=[{id:'task-private',title:'Outra informação privada',done:false}];
  const save=async(value=state,revision=1)=>call('state',{method:'PUT',body:{data:value,revision},cookie:users[0].cookie});assert.equal((await save(state,0)).status,200);
  async function preview(documentId='doc-private'){return call('document-shares/preview',{method:'POST',cookie:users[0].cookie,body:{documentId,recipientEmail:users[1].email,hours:24}});}

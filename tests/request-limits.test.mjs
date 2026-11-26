@@ -11,7 +11,7 @@ function streamed(bytes,chunkSize=65536){
  const request=new Request(origin+'/api/register',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body,duplex:'half'});
  return {request,cancelled:()=>cancelled,read:()=>offset};
 }
-const registration=name=>JSON.stringify({name,email:'request-limit@example.test',password:'synthetic-request-password-2026',plan:'plus'});
+const registration=name=>JSON.stringify({name,email:'request-limit@example.test',password:'synthetic-request-password-2026',plan:'plus',acceptTerms:true});
 
 test('JSON sem Content-Length respeita limite em bytes e interrompe fluxo excedente',async()=>{
  const DB=integrationDB();try{

@@ -127,17 +127,17 @@ async function refresh(env,order,minGap=10000){
 // The server alone decides the amount: regular price, or the promotional one for a first payment.
 // Amount, days and the promotional flag are stored in the order, so confirming it later grants
 // exactly what was sold even if the catalog changes in the meantime.
-export async function six7payCheckout(env,user,plan){
+export async function six7payCheckout(env,user,plan,{termsVersion=null}={}){
  if(!six7payConfigured(env))problem('Pagamento indisponível no momento.',503);
  if(!plan?.priceCents)problem('Este plano ainda não está disponível para compra.');
  const {DB:db}=env,now=Date.now(),id=randomCode().slice(0,24);
  const {chargeCents,promotional}=chargeFor(plan,await promoEligible(db,user.id));
  // Early renewal is allowed; only accounts granted access with no end date cannot buy.
- const claim=await db.prepare(`INSERT INTO six7pay_orders(id,user_id,plan,amount,days,promotional,created_at,expires_at)
-  SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE user_id=? AND (status!='active' OR current_period_end IS NOT NULL))
+ const claim=await db.prepare(`INSERT INTO six7pay_orders(id,user_id,plan,amount,days,promotional,created_at,expires_at,terms_version)
+  SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE user_id=? AND (status!='active' OR current_period_end IS NOT NULL))
   AND NOT EXISTS(SELECT 1 FROM six7pay_orders WHERE user_id=? AND status IN ('creating','pending','unknown') AND expires_at>?)
   AND (?=0 OR NOT EXISTS(SELECT 1 FROM six7pay_orders WHERE user_id=? AND (status='paid' OR paid_at IS NOT NULL)))
-  RETURNING *`).bind(id,user.id,plan.id,chargeCents,plan.days,promotional?1:0,now,now+hour,user.id,user.id,now,promotional?1:0,user.id).first();
+  RETURNING *`).bind(id,user.id,plan.id,chargeCents,plan.days,promotional?1:0,now,now+hour,termsVersion,user.id,user.id,now,promotional?1:0,user.id).first();
  if(!claim){
   const open=await db.prepare(`SELECT * FROM six7pay_orders WHERE user_id=? AND status IN ('creating','pending','unknown') AND expires_at>? ORDER BY created_at DESC`).bind(user.id,now).first();
   if(open?.plan===plan.id&&(open.amount!==chargeCents||daysOf(open)!==plan.days))problem('O preço deste plano mudou. Aguarde alguns minutos para gerar uma nova cobrança.',409);
@@ -173,6 +173,7 @@ export async function six7payOrder(env,user){
 async function applyRefund(db,order,amount,source,now=Date.now()){
  const id='six7pay-refund:'+order.transaction_id,period=daysOf(order)*day;
  await db.batch([
+  db.prepare("UPDATE withdrawal_requests SET status='refunded',resolved_at=? WHERE order_id=? AND status='requested'").bind(now,order.id),
   db.prepare(`UPDATE subscriptions SET
    status=CASE WHEN current_period_end-?>? THEN 'active' ELSE 'canceled' END,
    current_period_end=CASE WHEN current_period_end-?>? THEN current_period_end-? ELSE NULL END
@@ -193,6 +194,10 @@ export async function six7payRefund(env,orderId){
  const {DB:db}=env;
  const order=typeof orderId==='string'&&/^[a-f0-9]{24}$/.test(orderId)?await load(db,orderId):null;
  if(!order)problem('Pagamento não encontrado.',404);
+ return refundOrder(env,order,'admin');
+}
+async function refundOrder(env,order,source){
+ const {DB:db}=env;
  if(order.status!=='paid'||!order.transaction_id)problem('Só um pagamento confirmado pode ser estornado.',409);
  if(order.refunded_at)problem('Este pagamento já foi estornado.',409);
  const result=await call(env,'POST',`/paytime/transactions/${encodeURIComponent(order.transaction_id)}/reversal`,{amount:order.amount},'estorno-'+order.id);
@@ -202,15 +207,56 @@ export async function six7payRefund(env,orderId){
   const message=typeof result.data?.error?.message==='string'?result.data.error.message.slice(0,200):'';
   problem('A Six7Pay recusou o estorno'+(message?': '+message:'.'),502);
  }
- await applyRefund(db,order,order.amount,'admin');
+ await applyRefund(db,order,order.amount,source);
  const after=await call(env,'GET','/paytime/transactions/'+encodeURIComponent(order.transaction_id));
  return {ok:true,providerStatus:after.status===200?statusOf(after.data)||null:null};
 }
 
+// Direito de arrependimento (CDC, art. 49): 7 dias corridos desde a confirmação do pagamento.
+const WITHDRAWAL_WINDOW=7*day;
+async function withdrawable(db,userId,now){
+ return db.prepare(`SELECT * FROM six7pay_orders WHERE user_id=? AND status='paid' AND refunded_at IS NULL AND transaction_id IS NOT NULL AND paid_at>? ORDER BY paid_at DESC LIMIT 1`).bind(userId,now-WITHDRAWAL_WINDOW).first();
+}
+/** O que Meu espaço mostra: um pagamento ainda dentro do prazo, ou o pedido já feito. */
+export async function six7payWithdrawalInfo(env,user,now=Date.now()){
+ const {DB:db}=env;
+ const request=await db.prepare('SELECT id,order_id,amount,status,requested_at,resolved_at FROM withdrawal_requests WHERE user_id=? ORDER BY requested_at DESC LIMIT 1').bind(user.id).first();
+ const order=await withdrawable(db,user.id,now);
+ const open=order&&!(request&&request.order_id===order.id);
+ return {
+  eligible:open?{orderId:order.id,amount:order.amount,paidAt:order.paid_at,deadline:order.paid_at+WITHDRAWAL_WINDOW}:null,
+  request:request?{protocol:request.id,orderId:request.order_id,amount:request.amount,status:request.status,requestedAt:request.requested_at,resolvedAt:request.resolved_at}:null
+ };
+}
+/**
+ * Registra o pedido de arrependimento (confirmação imediata com protocolo) e pede o estorno integral
+ * à Six7Pay na hora. Se a Six7Pay não confirmar, o pedido fica 'requested' para a equipe concluir pelo /admin.
+ */
+export async function six7payWithdraw(env,user,now=Date.now()){
+ const {DB:db}=env;
+ const order=await withdrawable(db,user.id,now);
+ if(!order){
+  const last=await db.prepare('SELECT id,status FROM withdrawal_requests WHERE user_id=? ORDER BY requested_at DESC LIMIT 1').bind(user.id).first();
+  if(last)problem(`Seu pedido de arrependimento já foi registrado (protocolo ${last.id}).`,409);
+  problem('Não há pagamento confirmado nos últimos 7 dias para desistir.',409);
+ }
+ const protocol='ARR-'+randomCode().slice(0,10).toUpperCase();
+ await db.prepare(`INSERT INTO withdrawal_requests(id,user_id,order_id,name,email,amount,requested_at,status) VALUES(?,?,?,?,?,?,?,'requested') ON CONFLICT(order_id) DO NOTHING`)
+  .bind(protocol,user.id,order.id,user.name,user.email,order.amount,now).run();
+ const request=await db.prepare('SELECT * FROM withdrawal_requests WHERE order_id=?').bind(order.id).first();
+ let detail=null;
+ if(request.status==='requested'){
+  try{if(!six7payReady(env))problem('Pagamentos indisponíveis.',503);await refundOrder(env,order,'withdrawal');}
+  catch(error){detail=String(error.message||'falha').slice(0,200);await db.prepare('UPDATE withdrawal_requests SET detail=? WHERE id=?').bind(detail,request.id).run();console.error(JSON.stringify({event:'six7pay_withdrawal_pending',order:order.id}));}
+ }
+ const fresh=await db.prepare('SELECT * FROM withdrawal_requests WHERE id=?').bind(request.id).first();
+ return {protocol:fresh.id,status:fresh.status,amount:fresh.amount,requestedAt:fresh.requested_at};
+}
+
 export async function six7payAdminList(env){
  const {DB:db}=env;
- const items=(await db.prepare(`SELECT o.id,o.plan,o.amount,o.days,o.promotional,o.status,o.created_at,o.paid_at,o.refunded_at,o.refund_amount,o.transaction_id,u.name,u.email
-  FROM six7pay_orders o LEFT JOIN users u ON u.id=o.user_id ORDER BY o.created_at DESC LIMIT 100`).all()).results;
+ const items=(await db.prepare(`SELECT o.id,o.plan,o.amount,o.days,o.promotional,o.status,o.created_at,o.paid_at,o.refunded_at,o.refund_amount,o.transaction_id,u.name,u.email,w.id AS withdrawal_id,w.status AS withdrawal_status,w.requested_at AS withdrawal_requested_at
+  FROM six7pay_orders o LEFT JOIN users u ON u.id=o.user_id LEFT JOIN withdrawal_requests w ON w.order_id=o.id ORDER BY o.created_at DESC LIMIT 100`).all()).results;
  let balance=null;
  if(six7payReady(env)){const b=await call(env,'GET','/paytime/establishments/balance');if(b.status===200&&Number.isInteger(b.data?.balance))balance={available:b.data.balance,blocked:b.data.blocked_balance??0,total:b.data.total_balance??b.data.balance};}
  return {items,balance,checkout:six7payConfigured(env)};

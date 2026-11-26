@@ -15,7 +15,7 @@ async function environment(){
   const response=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:requestOrigin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined}),env);
   return {status:response.status,body:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};
  }
- const users=[];for(const name of ['native-a','native-b']){const result=await call('register',{method:'POST',data:{name,email:name+'@example.test',password:'native-test-password',plan:'plus'}});assert.equal(result.status,200);users.push({...result.body.user,cookie:result.cookie});}
+ const users=[];for(const name of ['native-a','native-b']){const result=await call('register',{method:'POST',data:{name,email:name+'@example.test',password:'native-test-password',plan:'plus',acceptTerms:true}});assert.equal(result.status,200);users.push({...result.body.user,cookie:result.cookie});}
  DB.sql.prepare("UPDATE subscriptions SET status='active'").run();return {DB,env,call,users};
 }
 test('registro nativo exige sessão, origem, provedor e assinatura e isola token por conta',async()=>{
