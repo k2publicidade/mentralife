@@ -39,3 +39,11 @@
 .workspace .home-intro h1{letter-spacing:-.035em}
 .workspace .home-intro .hero-mascot::before,.workspace .home-intro .hero-mascot::after{content:"";position:absolute;z-index:0;left:50%;top:50%;width:104%;aspect-ratio:1;border:1px solid #f4f1e61a;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
 .workspace .home-intro .hero-mascot::after{width:136%;border-style:dashed;border-color:#f4f1e612}
+
+/* Ajustes da revisão crítica de 26/11/2026. */
+.workspace .page-heading h1+p{margin-top:12px}
+/* O plano já escolhido não compete com as ações: botão em contorno, sem cara de chamada principal. */
+.workspace .portal-plans>.plan-selected>.outline,.workspace .portal-plans>.plan-selected>.outline:disabled{border-color:#f4f1e64d!important;background:transparent!important;color:#f4f1e6!important}
+.workspace .portal-plans>.card>.plan-price{min-height:4.4em;align-content:start}
+.workspace .portal-plans>.card>.plan-price small{flex-basis:100%}
+@media(max-width:760px){.workspace .menu-card{padding:14px 16px}.workspace .menu-card>svg:first-child{padding:9px;border-radius:12px}}

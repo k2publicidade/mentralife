@@ -68,7 +68,7 @@ export function mountPortalMotion(site) {
     site.classList.toggle('is-scrolled', scrollY > 16);
     if (!words.length) return;
     const box = statement.getBoundingClientRect(), view = innerHeight;
-    const next = litCount((view * .86 - box.top) / (box.height + view * .42), words.length);
+    const next = litCount((view * .85 - box.top) / (box.height + view * .2), words.length);
     if (next === lit) return;
     for (let index = Math.min(lit, next); index < Math.max(lit, next); index++) words[index].classList.toggle('is-lit', next > lit);
     lit = next;
