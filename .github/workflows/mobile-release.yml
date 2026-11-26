@@ -1,0 +1,126 @@
+name: Mobile release
+
+# Manual only: builds the store binaries from the current branch.
+# - Android: signed .aab (Play Console) when the upload-key secrets exist.
+# - iOS: always compiles + launches in the simulator; with Apple secrets it also
+#   archives, signs (automatic, App Store Connect API key) and uploads to TestFlight.
+# Secrets (Settings > Secrets and variables > Actions), all optional per platform:
+#   ANDROID_UPLOAD_KEYSTORE_B64, ANDROID_UPLOAD_STORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS, ANDROID_UPLOAD_KEY_PASSWORD
+#   ANDROID_GOOGLE_SERVICES_JSON_B64 (FCM push)
+#   APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_B64
+on:
+  workflow_dispatch:
+    inputs:
+      upload_ios:
+        description: Enviar build iOS ao TestFlight
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: 21
+      - name: Firebase client (optional)
+        env:
+          GOOGLE_SERVICES: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+        if: env.GOOGLE_SERVICES != ''
+        run: echo "$GOOGLE_SERVICES" | base64 --decode > android/app/google-services.json
+      - name: Prepare and test application
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run mobile:sync
+          npx cap sync android
+      - name: Build
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          MENTRA_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          MENTRA_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          MENTRA_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+            export MENTRA_UPLOAD_STORE_FILE="$RUNNER_TEMP/upload.jks"
+            ./gradlew bundleRelease assembleRelease --no-daemon --console=plain
+            jarsigner -verify app/build/outputs/bundle/release/app-release.aab > /dev/null
+          else
+            echo "::warning::Sem upload key: gerando apenas APK de teste."
+            ./gradlew assembleDebug --no-daemon --console=plain
+          fi
+      - name: Verify packaged assets
+        run: |
+          for f in android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/debug/app-debug.apk; do
+            if [ -f "$f" ]; then python3 scripts/verify-android-apk.py "$f"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-binaries
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/**/*.apk
+          retention-days: 14
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Prepare and test application
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run mobile:sync
+          npx cap sync ios
+      - name: Compile unsigned simulator application
+        run: |
+          xcodebuild -version
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath .mentra-private/ios-ci-build CODE_SIGNING_ALLOWED=NO build | tee ios-build.log
+      - name: Verify simulator launch
+        run: python3 scripts/smoke-ios-simulator.py
+      - name: Archive and upload to TestFlight
+        if: inputs.upload_ios
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_B64; do
+            [ -n "${!v}" ] || { echo "::error::Secret $v ausente."; exit 1; }
+          done
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_KEY_P8_B64" | base64 --decode > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Mentra.xcarchive" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive | tee ios-archive.log
+          cp ios/App/ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Mentra.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}" | tee ios-export.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-logs
+          path: ios-*.log
+          retention-days: 14

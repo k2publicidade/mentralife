@@ -15,6 +15,11 @@ test('pré-publicação verifica par VAPID sem expor valores e identifica config
  assert.equal(invalid.find(c=>c.id==='d1_id').ok,false);
  assert.ok(!JSON.stringify(invalid).includes(secret.VAPID_PRIVATE_KEY));
  assert.ok(!JSON.stringify(invalid).includes(secret.WHATSAPP_ACCESS_TOKEN));
+ const gatewayOnly={...secret,WHATSAPP_GATEWAY_SECRET:'c'.repeat(64)};
+ for(const k of ['WHATSAPP_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_ACCESS_TOKEN','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_GRAPH_VERSION'])delete gatewayOnly[k];
+ const gwChecks=await checkReadiness(config,gatewayOnly);
+ assert.ok(gwChecks.every(c=>c.ok));
+ assert.ok(!JSON.stringify(gwChecks).includes(gatewayOnly.WHATSAPP_GATEWAY_SECRET));
 });
 test('pré-publicação recusa raiz pública, rota faltante, logs com query e secrets em vars sem revelar valores',async()=>{
  const checks=await checkReadiness({name:'mentra-life',main:'server/worker.mjs',assets:{directory:'.',run_worker_first:['/admin']},vars:{DEEPSEEK_API_KEY:'synthetic-sensitive-value'},observability:{logs:{invocation_logs:true}}},{});

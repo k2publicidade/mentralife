@@ -10,3 +10,15 @@ node_modules
 dist/downloads
 dist/handoff
 .openai
+android
+ios
+.mobile-public
+.github
+__pycache__
+debug.log
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+whatsapp-gateway
+hermes-vps

@@ -1,0 +1,19 @@
+name: mentra
+version: 1.2.0
+description: Liga o WhatsApp do Hermes às contas individuais da Mentra (identidade, dados e ações por pessoa).
+provides_tools:
+  - consultar_mentra
+  - create_task
+  - create_event
+  - record_transaction
+  - create_account
+  - create_obligation
+  - create_receipt
+  - save_document
+provides_hooks:
+  - pre_gateway_dispatch
+  - pre_llm_call
+  - post_llm_call
+requires_env:
+  - MENTRA_API_URL
+  - WHATSAPP_GATEWAY_SECRET

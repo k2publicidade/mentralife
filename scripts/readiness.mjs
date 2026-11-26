@@ -16,19 +16,24 @@ export async function checkReadiness(config,secrets){
  add('worker_name',/^[a-z][a-z0-9-]{1,61}[a-z0-9]$/.test(config?.name||''),'Definir o nome do Worker do alvo.');
  add('assets_directory',['dist','./dist'].includes(config?.assets?.directory),'Hospedar somente dist; nunca publicar a raiz do projeto.');
  add('api_routing',config?.assets?.run_worker_first?.includes('/api/*')&&config?.assets?.run_worker_first?.includes('/admin'),'Encaminhar /api/* e /admin ao Worker.');
- add('private_configuration',!Object.keys(config?.vars||{}).some(k=>/(?:API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD|PASSPHRASE|ENCRYPTION_KEY)$/i.test(k)),'Remover secrets do JSON de configuração; cadastrar pelo armazenamento de secrets do Worker.');
+ add('private_configuration',!Object.keys(config?.vars||{}).some(k=>/(?:API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD|PASSPHRASE|ENCRYPTION_KEY|FCM_SERVICE_ACCOUNT)$/i.test(k)),'Remover secrets do JSON de configuração; cadastrar pelo armazenamento de secrets do Worker.');
  add('log_privacy',config?.observability?.redact_query_string===true&&config?.observability?.logs?.invocation_logs===false,'Suprimir query strings e logs automáticos de invocação no alvo publicado.');
  add('d1_id',config?.d1_databases?.some(d=>d.binding==='DB'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(d.database_id)),'Definir o identificador real do D1 de staging/produção.');
  add('ai_binding',config?.ai?.binding==='AI','Habilitar o binding Workers AI AI na conta Cloudflare.');
  add('cron',config?.triggers?.crons?.includes('* * * * *'),'Configurar execução do scheduler a cada minuto.');
- if(config?.vars?.PUBLIC_ORIGIN){
+ if(config?.vars?.PUBLIC_ORIGIN||secrets.VERCEL_ORIGIN_SECRET){
   let valid=false;try{const u=new URL(config.vars.PUBLIC_ORIGIN);valid=u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash&&u.pathname==='/';}catch{}
   add('vercel_public_origin',valid,'Definir PUBLIC_ORIGIN com a origem HTTPS estável do site Vercel.');
   add('VERCEL_ORIGIN_SECRET',/^[a-f0-9]{64}$/.test(secrets.VERCEL_ORIGIN_SECRET||''),'Cadastrar o mesmo segredo privado na Cloudflare e na Vercel.');
  }
- for(const name of ['WHATSAPP_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_ACCESS_TOKEN'])add(name,typeof secrets[name]==='string'&&secrets[name].length>0,'Cadastrar '+name+' como secret do Worker.');
- add('WHATSAPP_GRAPH_VERSION',/^v\d+\.\d+$/.test(secrets.WHATSAPP_GRAPH_VERSION||config?.vars?.WHATSAPP_GRAPH_VERSION||''),'Escolher a versão Graph aceita pela aplicação Meta.');
- add('WHATSAPP_PHONE_NUMBER_ID',/^\d{5,30}$/.test(secrets.WHATSAPP_PHONE_NUMBER_ID||config?.vars?.WHATSAPP_PHONE_NUMBER_ID||''),'Cadastrar o ID do número empresarial Meta.');
+ const hasGateway=/^[a-f0-9]{64}$/.test(secrets.WHATSAPP_GATEWAY_SECRET||''),hasMetaGraph=Boolean(secrets.WHATSAPP_APP_SECRET||secrets.WHATSAPP_ACCESS_TOKEN||secrets.WHATSAPP_PHONE_NUMBER_ID||config?.vars?.WHATSAPP_PHONE_NUMBER_ID);
+ if(hasGateway&&!hasMetaGraph){
+  add('WHATSAPP_GATEWAY_SECRET',true,'Cadastrar WHATSAPP_GATEWAY_SECRET com 64 caracteres hexadecimais no Worker.');
+ }else{
+  for(const name of ['WHATSAPP_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_ACCESS_TOKEN'])add(name,typeof secrets[name]==='string'&&secrets[name].length>0,'Cadastrar '+name+' como secret do Worker (ou WHATSAPP_GATEWAY_SECRET para modo QR Gateway).');
+  add('WHATSAPP_GRAPH_VERSION',/^v\d+\.\d+$/.test(secrets.WHATSAPP_GRAPH_VERSION||config?.vars?.WHATSAPP_GRAPH_VERSION||''),'Escolher a versão Graph aceita pela aplicação Meta.');
+  add('WHATSAPP_PHONE_NUMBER_ID',/^\d{5,30}$/.test(secrets.WHATSAPP_PHONE_NUMBER_ID||config?.vars?.WHATSAPP_PHONE_NUMBER_ID||''),'Cadastrar o ID do número empresarial Meta.');
+ }
  let pairValid=false;
  try{
   const pub=Buffer.from(secrets.VAPID_PUBLIC_KEY||'','base64url'),priv=Buffer.from(secrets.VAPID_PRIVATE_KEY||'','base64url');
@@ -58,7 +63,7 @@ async function main(){
  const migrations=readdirSync('migrations').filter(f=>f.endsWith('.sql')).length;
  console.log('Pré-publicação local: '+migrations+' migrações. Valores de secrets não são exibidos.');
  for(const check of checks)console.log((check.ok?'OK ':'PENDENTE ')+check.id+(check.ok?'':': '+check.message));
- console.log('DeepSeek: penúltima etapa. Gateway: última etapa.');
+ console.log('DeepSeek: configurar DEEPSEEK_API_KEY no Worker e homologar o chat e a orientação de planos com uma conta ativa.');
  console.log('Este comando não autentica, publica ou comprova credenciais/serviços remotos. Aplicar migrações, cadastrar secrets e homologar HTTPS/aparelhos ainda são etapas de implantação.');
  if(checks.some(c=>!c.ok))process.exitCode=1;
 }

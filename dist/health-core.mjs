@@ -22,7 +22,7 @@ const validId=v=>typeof v==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/.test(v
 const normalize=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const validDate=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!v.startsWith('0000')&&Number.isFinite(Date.parse(`${v}T12:00:00Z`))&&new Date(`${v}T12:00:00Z`).toISOString().slice(0,10)===v;
 const validTime=v=>typeof v==='string'&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v);
-const emptyHealth=()=>({version:1,appointments:[],medications:[],logs:[],activities:[],meals:[],groceryChecked:[],professional:{nutrition:'',movement:''}});
+export const emptyHealth=()=>({version:1,appointments:[],medications:[],logs:[],activities:[],meals:[],groceryChecked:[],professional:{nutrition:'',movement:''}});
 const demoHealth=()=>({...emptyHealth(),appointments:[{id:'health-demo-consulta',type:'consulta',title:'Consulta de exemplo',date:'2026-10-15',time:'10:00',documentId:'',note:'Exemplo fictício para testar a organização.',done:false},{id:'health-demo-exame',type:'exame',title:'Exame de exemplo',date:'2026-10-16',time:'08:30',documentId:'',note:'Sem exame real ou preparação indicada.',done:false},{id:'health-demo-retorno',type:'retorno',title:'Retorno de exemplo',date:'2026-10-18',time:'14:00',documentId:'',note:'Data fictícia escolhida para a demonstração.',done:false}],medications:[{id:'health-demo-medication',title:'Medicamento fictício A',time:'08:00',note:'Horário de exemplo. Sem dose ou orientação de uso.',done:false}],logs:[{id:'health-demo-log',date:'2026-10-14',sleep:'regular',energy:'media',feeling:'Um dia tranquilo, no exemplo.',note:'Quero lembrar de comentar minha rotina na consulta fictícia.'}],activities:[{id:'health-demo-activity',title:'Passeio de exemplo',date:'2026-10-14',time:'17:30',note:'Atividade fictícia escolhida pela pessoa, não uma recomendação.',done:false}],meals:[{id:'health-demo-meal',day:'qua',slot:'almoco',recipeId:'arroz-feijao'}]});
 const fail=(state,error)=>({ok:false,state,errors:Array.isArray(error)?error:[error]});
 const success=(state,h,extra={})=>({ok:true,state:{...state,health:h},errors:[],...extra});
@@ -106,6 +106,6 @@ export function consultationSummary(state){
  lines.push('',globalThis.mentraProduction?'HORÁRIOS INFORMADOS':'HORÁRIOS INFORMADOS — EXEMPLOS');
  if(!h.medications.length)lines.push('Nenhum horário registrado.');
  for(const m of [...h.medications].sort((a,b)=>a.time.localeCompare(b.time)))lines.push(`${m.time} | ${m.title} | ${m.done?(globalThis.mentraProduction?'Marcado':'Marcado na demonstração'):(globalThis.mentraProduction?'Sem marcação':'Sem marcação na demonstração')}`,`Nota: ${m.note||'Não informada.'}`);
- lines.push('','O protótipo não define doses, não valida tratamentos e não oferece lembretes externos ou conexão com profissionais. Confira os registros antes de escolher compartilhar.');
+ lines.push('',(globalThis.mentraProduction?'A Mentra não define doses,':'O protótipo não define doses,')+' não valida tratamentos e não oferece lembretes externos ou conexão com profissionais. Confira os registros antes de escolher compartilhar.');
  return lines.join('\n');
 }

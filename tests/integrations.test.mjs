@@ -10,8 +10,20 @@ import {transcribeAudio} from '../server/audio.mjs';
 import {accountState} from '../dist/account-state.mjs';
 const origin='https://mentra.test';
 const b64=bytes=>Buffer.from(bytes).toString('base64url');
+
+test('elegibilidade de áudio reflete serviço e assinatura da sessão sem iniciar inferência',async()=>{
+ const c=await environment(),[a,b]=c.users;
+ try{
+  let calls=0;c.env.AI={run:async()=>{calls++;}};
+  c.DB.sql.prepare("UPDATE subscriptions SET status='pending' WHERE user_id=?").run(a.id);
+  let r=await c.call('integrations/inbox',{cookie:a.cookie});assert.equal(r.status,200);assert.equal(r.body.audioConfigured,true);assert.equal(r.body.audioEligible,false);
+  assert.equal((await c.call('integrations/inbox',{cookie:b.cookie})).body.audioEligible,true);
+  c.DB.sql.prepare("UPDATE subscriptions SET current_period_end=? WHERE user_id=?").run(Date.now()-1,b.id);assert.equal((await c.call('integrations/inbox',{cookie:b.cookie})).body.audioEligible,false);
+  delete c.env.AI;r=await c.call('integrations/inbox',{cookie:b.cookie});assert.equal(r.body.audioConfigured,false);assert.equal(r.body.audioEligible,false);assert.equal(calls,0);
+ }finally{c.DB.sql.close();}
+});
 async function environment(){const DB=integrationDB(),env={DB,WHATSAPP_APP_SECRET:'synthetic-secret',WHATSAPP_VERIFY_TOKEN:'synthetic-verify',WHATSAPP_PHONE_NUMBER_ID:'123456789',WHATSAPP_ACCESS_TOKEN:'synthetic-media-token',WHATSAPP_GRAPH_VERSION:'v24.0'};async function call(path,{method='GET',data,cookie,raw,headers={}}={}){const r=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{}),...headers},body:raw??(data?JSON.stringify(data):undefined)}),env);let body;try{body=await r.json();}catch{body=null;}return {status:r.status,body,cookie:r.headers.get('set-cookie')?.split(';')[0]};}
- const users=[];for(const name of ['A','B']){const r=await call('register',{method:'POST',data:{name,email:name+'@integration.test',password:'synthetic-integrations-password',plan:'plus'}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie});}DB.sql.prepare("UPDATE subscriptions SET status='active'").run();
+ const users=[];for(const name of ['A','B']){const r=await call('register',{method:'POST',data:{name,email:name+'@integration.test',password:'synthetic-integrations-password',plan:'plus',acceptTerms:true}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie});}DB.sql.prepare("UPDATE subscriptions SET status='active'").run();
  async function webhook(messages,{phoneId=env.WHATSAPP_PHONE_NUMBER_ID,signature=true}={}){const raw=JSON.stringify({object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{metadata:{phone_number_id:phoneId},messages:messages.map(m=>({timestamp:String(Math.floor(Date.now()/1000)),...m}))}}]}]}),key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.WHATSAPP_APP_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']),signed=Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(raw))).toString('hex');return call('whatsapp/webhook',{method:'POST',raw,headers:{'X-Hub-Signature-256':'sha256='+(signature?signed:'0'.repeat(64)),Origin:'https://meta.example'}});}
  return {DB,env,call,users,webhook};}
 test('WhatsApp: handshake, assinatura, vínculo único, isolamento, repetição, ACK seguro e opt-out',async()=>{const c=await environment(),[a,b]=c.users;const verification=await worker.fetch(new Request(origin+'/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=synthetic-verify&hub.challenge=challenge-123'),c.env);assert.equal(verification.status,200);assert.equal(await verification.text(),'challenge-123');const denied=await c.call('whatsapp/link',{method:'POST',cookie:a.cookie,data:{consent:false}});assert.equal(denied.status,400);const linked=await c.call('whatsapp/link',{method:'POST',cookie:a.cookie,data:{consent:true}});assert.equal(linked.status,200);

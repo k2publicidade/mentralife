@@ -11,7 +11,7 @@ async function fixture(t){
  const calls=[];let events=[],exchangeHook=null,extraToken={},httpStatus=200;
  globalThis.fetch=async(url,options)=>{calls.push({url:String(url),options});if(String(url).endsWith('/token')){if(exchangeHook)await exchangeHook();return Response.json({access_token:'synthetic-access',token_type:'Bearer',refresh_token:'synthetic-refresh',scope,...extraToken},{status:httpStatus});}if(String(url).endsWith('/revoke'))return new Response('',{status:httpStatus});return Response.json({summary:'Agenda sintética <privada>',items:events},{status:httpStatus});};
  async function call(path,{method='GET',body,cookie,requestOrigin=origin}={}){const response=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:requestOrigin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined}),env);return {status:response.status,body:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};}
- const a=await call('register',{method:'POST',body:{name:'Calendar A',email:'a@calendar.test',password:'synthetic-password-2026',plan:'plus'}}),b=await call('register',{method:'POST',body:{name:'Calendar B',email:'b@calendar.test',password:'synthetic-password-2026',plan:'plus'}});
+ const a=await call('register',{method:'POST',body:{name:'Calendar A',email:'a@calendar.test',password:'synthetic-password-2026',plan:'plus',acceptTerms:true}}),b=await call('register',{method:'POST',body:{name:'Calendar B',email:'b@calendar.test',password:'synthetic-password-2026',plan:'plus',acceptTerms:true}});
  const start=async(cookie=a.cookie)=>call('calendar/connect',{method:'POST',cookie,body:{confirmed:true}});
  const complete=async(started,cookie=a.cookie)=>call('calendar/complete',{method:'POST',cookie,body:{code:'synthetic-code',state:new URL(started.body.url).searchParams.get('state')}});
  const connect=async()=>complete(await start());
@@ -19,6 +19,15 @@ async function fixture(t){
  return {DB,env,call,a,b,calls,start,complete,connect,preview,setEvents:v=>events=v,setToken:v=>extraToken=v,setStatus:v=>httpStatus=v,hook:fn=>exchangeHook=fn};
 }
 const event=(patch={})=>({id:'external-1',iCalUID:'stable-uid',summary:'Consulta sintética',start:{dateTime:'2026-10-29T13:00:00Z'},end:{dateTime:'2026-10-29T14:00:00Z'},...patch});
+test('autorização iniciada no app mantém PKCE e só troca código na sessão que a iniciou',async t=>{
+ const c=await fixture(t),started=await c.call('calendar/connect',{method:'POST',cookie:c.a.cookie,body:{confirmed:true,native:true}}),target=new URL(started.body.url),state=target.searchParams.get('state');
+ assert.match(state,/^native\.[a-f0-9]{64}$/);assert.equal(target.searchParams.get('redirect_uri'),origin+'/calendar-callback');assert.equal(target.searchParams.get('code_challenge_method'),'S256');
+ const body={state:state.slice(7),code:'synthetic-native-code'};
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.b.cookie,body})).status,409);
+ assert.equal((await c.call('calendar/complete',{method:'POST',body})).status,401);
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.a.cookie,body})).status,200);
+ assert.equal((await c.call('calendar/complete',{method:'POST',cookie:c.a.cookie,body})).status,409);
+});
 test('OAuth exige sessão/origem/consentimento, PKCE e estado secreto de uso único',async t=>{
  const c=await fixture(t);assert.equal((await c.start(null)).status,401);
  assert.equal((await c.call('calendar/connect',{method:'POST',cookie:c.a.cookie,body:{confirmed:true},requestOrigin:'https://attacker.test'})).status,403);

@@ -15,3 +15,41 @@
 @media(max-width:760px){#integrations-panel{padding:20px;margin-top:20px}.integration-header{gap:12px}.integration-header h2{font-size:22px}.integration-header p{font-size:13px}.integration-header>.outline{font-size:0;padding:10px;min-width:42px;min-height:42px;gap:0}.integration-header>.outline svg{width:18px;height:18px}.integration-tabs{gap:6px;margin-top:20px}.integration-tabs [role=tab]{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:12px 6px;min-height:90px}.integration-tabs strong{font-size:12px}.integration-tabs small{font-size:10px;line-height:1.4}.integration-tab-icon{width:30px;height:30px}.integration-tab-icon svg{width:18px;height:18px}.integration-tabpanel{padding-top:22px}.integration-detail-grid{gap:22px}.integration-detail-grid form>.primary{width:100%}.integration-detail-grid .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.integration-device .button-row{flex-direction:column}.integration-code{font-size:12px}.integration-status:not(:empty){font-size:13px;padding:12px}}
 
 .integration-message-actions{display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}.integration-message-actions .outline{font-size:12px;min-height:40px;padding:9px 12px}
+
+/* Passo a passo para conectar o WhatsApp: pop-up e chamada na tela inicial. */
+.wa-guide-lead{font-size:15px;line-height:1.65;color:var(--muted);margin-top:4px}
+.wa-guide-steps{list-style:none;margin:20px 0 0;padding:0;display:grid;gap:10px}
+.wa-guide-steps li{display:flex;align-items:flex-start;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fbfcf7}
+.wa-guide-steps li.is-current{border-color:#6f8e75;background:#edf3e7}
+.wa-guide-steps li.is-done{opacity:.72}
+.wa-guide-number{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:50%;background:#e2e9d9;color:var(--forest);font-weight:650;font-size:14px}
+.wa-guide-steps li.is-current .wa-guide-number{background:var(--forest);color:var(--paper)}
+.wa-guide-number svg{width:16px;height:16px}
+.wa-guide-steps strong{display:block;font-size:15px;line-height:1.4}
+.wa-guide-steps small{display:block;font-size:13px;line-height:1.55;color:var(--muted);margin-top:3px}
+.wa-guide form{display:grid;gap:16px;margin-top:20px}
+.wa-guide .integration-check{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.6;font-weight:400}
+.wa-guide .integration-check input[type=checkbox]{appearance:auto;flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:3px 0 0;padding:0;accent-color:#285442}
+.wa-guide form>.primary,.wa-guide-open{width:100%;min-height:52px;font-size:15px;margin-top:0;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border-radius:12px}
+.wa-guide-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.wa-guide-actions>*{flex:1 1 150px;margin-top:0;justify-content:center;text-align:center}
+.wa-guide-actions>a.primary{display:flex;align-items:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:12px;text-decoration:none}
+.wa-guide-dismiss .outline{border-color:transparent;color:var(--muted);font-size:13px;min-height:40px;padding:8px 12px}
+.wa-guide-help{font-size:13px;color:var(--muted);line-height:1.6;margin-top:16px}
+.wa-guide-wait{display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.6;color:var(--muted);margin-top:8px}
+.wa-guide-wait i{flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:#6f8e75}
+.wa-guide-done{display:flex;align-items:flex-start;gap:12px;margin-top:18px;padding:16px;border-radius:14px;background:#e8f0e1;color:var(--forest)}
+.wa-guide-done>svg{flex:0 0 22px;width:22px;height:22px;margin-top:2px}
+.wa-guide-done p{font-size:13px;line-height:1.6;margin-top:4px}
+.wa-guide .form-error{margin:0}
+.wa-guide-inline{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:20px}
+.wa-guide-inline .primary{margin-top:0}.wa-guide-inline small{font-size:13px;color:var(--muted)}
+.wa-home-card{display:flex;align-items:center;gap:18px;margin:0 0 24px;padding:20px 24px;border:1px solid #cfddc3;border-radius:18px;background:#e9f1e0}
+.wa-home-icon{display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:14px;background:var(--forest);color:var(--paper)}
+.wa-home-card>div{flex:1;min-width:0}.wa-home-card h2{font-size:18px;line-height:1.35}
+.wa-home-card p{font-size:14px;line-height:1.55;color:var(--muted);margin-top:4px}
+.wa-home-card .primary{flex-shrink:0;margin-top:0}
+#wa-home-slot:empty{display:none}
+@media(prefers-reduced-motion:no-preference){.wa-guide-wait i{animation:wa-guide-pulse 1.4s ease-in-out infinite}}
+@keyframes wa-guide-pulse{50%{opacity:.25}}
+@media(max-width:760px){.wa-home-card{flex-wrap:wrap;padding:18px;gap:14px}.wa-home-card>div{flex:1 1 180px}.wa-home-card .primary{width:100%}.wa-guide-steps li{padding:12px;gap:12px}}

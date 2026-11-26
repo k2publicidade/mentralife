@@ -28,7 +28,9 @@
     "binding": "AI"
   },
   "vars": {
-    "DEEPSEEK_MODEL": "deepseek-flash"
+    "DEEPSEEK_MODEL": "deepseek-flash",
+    "SIX7PAY_ESTABLISHMENT": "440627",
+    "SIX7PAY_CHECKOUT": "off"
   },
   "observability": {
     "enabled": true,

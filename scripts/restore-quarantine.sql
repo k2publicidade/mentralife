@@ -7,11 +7,14 @@ DELETE FROM calendar_connections;
 UPDATE document_shares SET revoked_at=COALESCE(revoked_at,CAST(strftime('%s','now') AS INTEGER)*1000);
 DELETE FROM push_deliveries;
 DELETE FROM push_subscriptions;
+DELETE FROM native_push_deliveries;
+DELETE FROM native_push_devices;
 UPDATE reminder_settings SET enabled=0,last_reconciled=0;
 UPDATE reminder_jobs SET status='cancelled' WHERE status='pending';
+DELETE FROM product_settings WHERE key='whatsapp_gateway';
 DELETE FROM whatsapp_link_codes;
 DELETE FROM whatsapp_links;
-UPDATE integration_inbox SET status='discarded',lease_until=0,next_attempt=0,error='Revisar após restauração isolada.',updated_at=CAST(strftime('%s','now') AS INTEGER)*1000 WHERE status NOT IN ('confirmed','discarded');
+UPDATE integration_inbox SET status='discarded',lease_until=0,next_attempt=0,error='Revisar após restauração isolada.',updated_at=CAST(strftime('%s','now') AS INTEGER)*1000 WHERE status NOT IN ('confirmed','imported','discarded');
 UPDATE audio_requests SET status='failed',lease_until=0 WHERE status='processing';
 -- Reconciliar exclusões/alterações posteriores ao backup e situação das assinaturas
 -- com os registros do incidente ANTES de ligar esta base a um Worker público.

@@ -59,3 +59,175 @@ main>.page-heading{animation:none}
 .has-platform-toolbar #main-content{scroll-margin-top:var(--platform-toolbar-height,54px)}
 
 .account-backup>button+button{margin-top:12px}
+.chat-audio{margin-bottom:12px}
+.chat-audio summary{cursor:pointer;padding:8px 0;min-height:44px;font-weight:600}
+.chat-audio[open]>:not(summary){margin-top:8px}
+.chat-audio label{display:grid;gap:6px;font-weight:600}
+.chat-audio input{max-width:100%;font:inherit}
+.chat-audio small{display:block;color:var(--muted,#626b65);line-height:1.5}
+.chat-panel:has(.chat-audio){height:auto;min-height:580px}
+.chat-panel:has(.chat-audio) .messages{flex:1 1 auto;min-height:240px;max-height:420px}
+
+/* Shared product vocabulary. See design-system/mentra-life/MASTER.md. */
+:root {
+  --action-surface: #f7faf3;
+  --action-hover: #e4eddf;
+  --action-border: #849a83;
+  --action-text: #173e32;
+  --action-focus: #27644e;
+  --action-radius: 10px;
+  --control-border: var(--action-border);
+}
+
+::selection { background: #d7e5ae; color: #102f26; }
+:is(h1,h2) { text-wrap: balance; }
+.subtitle { max-width: 65ch; }
+:is(.finance-kpi,.record,.home-finance,table) { font-variant-numeric: tabular-nums; }
+:is(button,a,summary) { touch-action: manipulation; -webkit-tap-highlight-color: #27644e28; }
+:is(button,a,input,select,textarea,summary,[tabindex="0"]):focus-visible {
+  outline: 2px solid var(--action-focus);
+  outline-offset: 3px;
+}
+:is(.sidebar,.hero,.platform-toolbar) :focus-visible { outline-color: #e0ecbb; }
+.modal { overscroll-behavior: contain; }
+.modal:focus { outline: 0; }
+.admin-sections[hidden] { display: none; }
+.has-platform-toolbar { scroll-padding-top: calc(var(--platform-toolbar-height,54px) + 12px); }
+
+.primary,.outline,button.text-link,.icon-button:not(.avatar) {
+  border-radius: var(--action-radius);
+  transition: background-color 150ms ease,border-color 150ms ease,color 150ms ease;
+}
+.check-button { border-color: var(--action-border); }
+.check-button:hover { background: var(--action-hover); }
+.primary {
+  background: var(--forest);
+  border: 1px solid transparent;
+  box-shadow: none;
+  font-weight: 600;
+}
+.primary:hover { background: #245743; box-shadow: none; transform: none; }
+.primary:active { background: #102f26; }
+.primary.light { background: #e0ecbb; color: #173e32; }
+.primary.light:hover { background: #f1f6dc; }
+.primary.light:active { background: #c9dc9f; }
+.outline,button.text-link,.icon-button:not(.avatar) {
+  background-color: var(--action-surface);
+  border: 1px solid var(--action-border);
+  color: var(--action-text);
+}
+button.text-link {
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: center;
+}
+.icon-button:not(.avatar) { width: 44px; height: 44px; }
+.outline:hover,button.text-link:hover,.icon-button:not(.avatar):hover {
+  background-color: var(--action-hover);
+  border-color: var(--action-focus);
+  color: var(--action-text);
+  transform: none;
+}
+:is(.outline,button.text-link,.icon-button):active,
+button.text-link[aria-pressed="true"] { background-color: #d8e7d2; }
+button:is(.primary,.outline,.text-link,.icon-button):disabled {
+  background: #edf0ea;
+  border-color: #a5b0a3;
+  color: #526454;
+  box-shadow: none;
+  transform: none;
+}
+a.text-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.23em;
+}
+.task-options,.calendar-event-actions,.library-card-actions { flex-wrap: wrap; gap: 8px; }
+.task h3,.menu-card span { overflow-wrap: anywhere; }
+.calendar-event-actions button[data-action*="cancel"],
+.calendar-event-actions button[data-action="remove-event"] { color: #853d31; }
+
+.topbar { min-height: 64px; height: auto; padding-block: 10px; }
+.breadcrumb { color: #52685b; }
+.side-link.active:before { content: none; }
+.side-link.active { box-shadow: none; }
+.side-link:not(.active):hover,.quick-card:hover,.menu-card:hover,.home-shortcut:hover {
+  transform: none;
+  box-shadow: none;
+}
+.page-heading { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.page-heading .page-context { color: var(--muted); letter-spacing: .07em; }
+.card { border-radius: 16px; box-shadow: none; }
+.tab { color: #52685b; }
+.tab:hover { color: var(--forest); background: #e8eee3; }
+.tab:focus-visible { outline-offset: -3px; }
+
+.home-greeting { font-size: 16px; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+.home-greeting>span { font-size: 14px; }
+.home-greeting,.portal-hero { animation: none; }
+.portal-hero img { height: auto; }
+.admin-page>h1 { margin-top: 16px; letter-spacing: -.025em; }
+.home-intro.hero-has-mascot { background: #173e32; border-radius: 20px; }
+.home-intro:before { content: none; }
+.home-intro h1 { margin-top: 0; line-height: 1.08; letter-spacing: -.035em; }
+.home-intro .intro-description { font-size: 15px; }
+.home-intro .intro-actions>span,.home-intro .hero-motion-control { font-size: 12px; }
+.home-action-bar {
+  gap: 8px;
+  margin-block: 16px 24px;
+  padding: 0;
+  border: 0;
+}
+.home-action-bar .home-shortcut {
+  min-height: 50px;
+  border: 1px solid var(--action-border);
+  border-radius: var(--action-radius);
+  background: var(--paper);
+  color: var(--action-text);
+  font-size: 14px;
+}
+.home-action-bar .home-shortcut:hover { background: var(--action-hover); }
+.home-day { margin-block: 28px 36px; }
+
+@media (max-width: 760px) {
+  .topbar { margin-bottom: 12px; }
+  .mobile-nav { gap: 4px; padding-top: 6px; background: var(--paper); backdrop-filter: none; }
+  .mobile-nav a { min-height: 54px; color: #506756; border-radius: 9px; }
+  .mobile-nav a.active { background: #dfebd9; color: var(--forest); }
+  .mobile-nav a.active:before { content: none; }
+  .mobile-nav a:focus-visible { outline-offset: -3px; }
+  .mobile-nav a:hover { background: #e9f0e6; }
+  .platform-toolbar a,.platform-toolbar button { min-height: 44px; }
+  .home-intro.hero-has-mascot {
+    grid-template-columns: minmax(0,1fr) minmax(80px,32%);
+    padding-bottom: 48px;
+  }
+  .home-intro h1 { font-size: clamp(26px,8.1vw,44px); text-wrap: initial; }
+  .home-intro>.hero-mascot { height: 112px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  :is(.primary,.outline,.text-link,.icon-button,.side-link,.home-shortcut,.menu-card) { transition: none; }
+}
+/* Plan prices: "De R$ 99,90 por R$ 67" and the promotional fine print. */
+.plan-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:4px 0;font-size:14px;line-height:1.4}
+.plan-price strong{font-size:clamp(22px,2.1vw,30px);letter-spacing:-.6px}
+.plan-price small{color:var(--muted,#64756b);font-size:13px}
+.plan-price-from{color:var(--muted,#64756b)}
+.plan-price-from s{text-decoration-thickness:1px}
+.plan-days{font-weight:600}
+.plan-fineprint{max-width:720px;margin:-8px 0 16px;font-size:11.5px;line-height:1.5;color:var(--muted,#64756b);opacity:.85}
+.pix-summary{margin:4px 0 12px;font-size:14px;color:var(--muted,#64756b)}
+/* Anexo de foto ou PDF na conversa com a Mentra IA */
+.chat-attach-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.chat-attach-button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;border:1px dashed var(--line);border-radius:999px;cursor:pointer;font-weight:600;color:var(--forest,#1f4d3f);background:transparent}
+.chat-attach-button:hover{border-style:solid}
+.chat-attach-button:focus-within{outline:2px solid var(--green,#2f6f57);outline-offset:2px}
+.chat-attach-button input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.chat-attach-button.is-busy{opacity:.7;cursor:progress}
+.chat-attach-button svg,.chat-file-chip svg{width:18px;height:18px;flex-shrink:0}
+.chat-file-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--paper,#fffefa);border:1px solid var(--line)}
+.chat-file-chip>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-file-chip .text-link{min-height:36px;padding:0 10px}

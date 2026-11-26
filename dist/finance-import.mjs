@@ -9,7 +9,8 @@ export async function parseFinancialCsv(text,delimiter=';'){
  if(/[\x00-\x08\x0b\x0c\x0e-\x1f\uFFFD]/.test(text))throw Error('O arquivo precisa conter texto UTF-8 válido.');
  const hash=await sha(text);text=text.replace(/^\uFEFF/,'');
  let rows=[],row=[],field='',quoted=false,closed=false;
- const cell=()=>{row.push(field);field='';closed=false;if(row.length>25)throw Error('O arquivo pode ter até 25 colunas.');};
+ // Remove o apóstrofo de proteção contra fórmulas que o próprio app (e planilhas) acrescentam ao exportar.
+ const cell=()=>{row.push(/^'[=+\-@]/.test(field)?field.slice(1):field);field='';closed=false;if(row.length>25)throw Error('O arquivo pode ter até 25 colunas.');};
  const line=()=>{cell();if(row.some(c=>c!==''))rows.push(row);row=[];if(rows.length>101)throw Error('Importe até cem registros por arquivo.');};
  for(let i=0;i<text.length;i++){
   const c=text[i];

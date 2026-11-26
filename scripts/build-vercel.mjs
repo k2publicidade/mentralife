@@ -3,11 +3,15 @@ import {resolve,join,dirname,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {httpsOrigin} from '../server/hosting.mjs';
+import {COMPANY,missingCompanyFields} from '../dist/legal.mjs';
 
-export function vercelEnvironment(env){
+export function vercelEnvironment(env,company=COMPANY){
  const workerOrigin=httpsOrigin(env.MENTRA_WORKER_ORIGIN),publicOrigin=httpsOrigin(env.PUBLIC_ORIGIN);
  if(workerOrigin===publicOrigin)throw Error('O backend Cloudflare e o site Vercel precisam de origens distintas.');
  if(!/^[a-f0-9]{64}$/.test(env.VERCEL_ORIGIN_SECRET||''))throw Error('Cadastre VERCEL_ORIGIN_SECRET como variável privada nas duas plataformas.');
+ // Decreto nº 7.962/2013, art. 2º: sem a identificação completa da empresa, o site não é publicado.
+ const missing=missingCompanyFields(company);
+ if(missing.length&&env.MENTRA_ALLOW_LEGAL_DRAFT!=='1')throw Error('Preencha COMPANY em dist/legal.mjs antes de publicar: '+missing.join(', ')+'.');
  return {workerOrigin,publicOrigin};
 }
 export function copyVercelAssets(root){
@@ -30,13 +34,14 @@ export function copyVercelAssets(root){
   }
  }
  copy(source,target);
- for(const file of ['index.html','admin.html','share.html','calendar-callback.html','push-sw.js','skip-link.mjs'])if(!existsSync(join(target,file)))throw Error('Arquivo público obrigatório ausente: '+file);
+ for(const file of ['index.html','admin.html','share.html','calendar-callback.html','termos.html','privacidade.html','excluir-conta.html','legal.css','push-sw.js','skip-link.mjs'])if(!existsSync(join(target,file)))throw Error('Arquivo público obrigatório ausente: '+file);
  return count;
 }
 function main(){try{
  vercelEnvironment(process.env);
  execFileSync(process.execPath,['scripts/prepare-vendor.mjs'],{stdio:'inherit'});
  execFileSync(process.execPath,['scripts/check.mjs'],{stdio:'inherit'});
+ execFileSync(process.execPath,['scripts/legal-pages.mjs','--check'],{stdio:'inherit'});
  console.log('Vercel: '+copyVercelAssets(process.cwd())+' arquivos públicos preparados. Nenhum secret foi escrito na saída.');
 }catch(error){console.error(error.message);process.exitCode=1;}}
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)main();

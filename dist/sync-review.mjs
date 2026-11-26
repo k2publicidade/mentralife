@@ -25,7 +25,8 @@ function changedFields(local,remote){
 export function compareStates(local,remote){
  const changes=[];local=local||{};remote=remote||{};
  for(const [key,area] of Object.entries(collections)){
-  const a=Array.isArray(local[key])?local[key]:[],b=Array.isArray(remote[key])?remote[key]:[],left=new Map(a.map((item,i)=>[item?.id||'index-'+i,item])),right=new Map(b.map((item,i)=>[item?.id||'index-'+i,item]));
+  const k=(item,i)=>item?.id||(key==='messages'&&item?.requestId&&item?.role?item.requestId+':'+item.role:'index-'+i);
+  const a=Array.isArray(local[key])?local[key]:[],b=Array.isArray(remote[key])?remote[key]:[],left=new Map(a.map((item,i)=>[k(item,i),item])),right=new Map(b.map((item,i)=>[k(item,i),item]));
   for(const [id,item] of left)if(!right.has(id))changes.push({area,type:'Adicionar',title:label(item)});else if(JSON.stringify(item)!==JSON.stringify(right.get(id)))changes.push({area,type:'Substituir',title:label(item),fields:changedFields(item,right.get(id))});
   for(const [id,item] of right)if(!left.has(id))changes.push({area,type:'Remover',title:label(item)});
   if(left.size===right.size&&[...left.keys()].every(id=>right.has(id))&&JSON.stringify([...left.keys()])!==JSON.stringify([...right.keys()]))changes.push({area,type:'Reordenar',title:`${left.size} registros em outra ordem`});

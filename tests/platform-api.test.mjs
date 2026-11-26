@@ -16,8 +16,8 @@ test('isolamento, login, persistência, concorrência, planos e autorização', 
  assert.equal((await call('plans')).body.plans.length,3);
  const email=`integration-${crypto.randomUUID()}@example.com`,password='test-password-123456';
  assert.equal((await call('register',{method:'POST',origin:'https://attacker.example',body:{}})).status,403);
- const a=await call('register',{method:'POST',body:{name:'Teste A',email,password,plan:'plus'}});assert.equal(a.status,200);assert.ok(a.cookie);
- const b=await call('register',{method:'POST',body:{name:'Teste B',email:'b-'+email,password,plan:'essencial'}});assert.equal(b.status,200);
+ const a=await call('register',{method:'POST',body:{name:'Teste A',email,password,plan:'plus',acceptTerms:true}});assert.equal(a.status,200);assert.ok(a.cookie);
+ const b=await call('register',{method:'POST',body:{name:'Teste B',email:'b-'+email,password,plan:'essencial',acceptTerms:true}});assert.equal(b.status,200);
  assert.equal((await call('me',{cookie:a.cookie})).body.subscription.status,'pending');
  const state={version:5,profile:{name:'Teste'},tasks:[{id:'private',title:'Privado'}],events:[],records:[],documents:[],inbox:[],messages:[]};
  assert.equal((await call('state',{method:'PUT',cookie:a.cookie,body:{data:state,revision:9}})).status,409);

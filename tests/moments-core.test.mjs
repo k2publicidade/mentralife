@@ -9,14 +9,14 @@ import {
   validateMomentsSettings, getMoment, getPeriodAt,
 } from '../dist/moments-core.mjs';
 
-test('moments defaults are neutral and use the three explicit example times', () => {
+test('moments defaults are always Christian and use the three explicit example times', () => {
   assert.deepEqual(PERIODS, [
     {id: 'morning', label: 'Manhã', defaultTime: '08:00'},
     {id: 'afternoon', label: 'Tarde', defaultTime: '14:00'},
     {id: 'night', label: 'Noite', defaultTime: '20:00'},
   ]);
   assert.deepEqual(defaultMomentsSettings(), {
-    enabled: true, christian: false,
+    enabled: true, christian: true,
     periods: {
       morning: {enabled: true, time: '08:00'},
       afternoon: {enabled: true, time: '14:00'},
@@ -28,9 +28,9 @@ test('moments defaults are neutral and use the three explicit example times', ()
 test('new settings and moment objects do not share mutable data', () => {
   const a = defaultMomentsSettings();
   a.periods.morning.time = '23:59';
-  a.christian = true;
+  a.christian = false;
   assert.equal(defaultMomentsSettings().periods.morning.time, '08:00');
-  assert.equal(defaultMomentsSettings().christian, false);
+  assert.equal(defaultMomentsSettings().christian, true);
   const moment = getMoment('morning');
   moment.text = 'altered';
   assert.notEqual(getMoment('morning').text, 'altered');
@@ -58,14 +58,13 @@ test('normalization restores malformed and legacy preferences without mutation',
   assert.equal(Object.hasOwn(actual.periods, 'unrelated'), false);
 });
 
-test('Christian content requires literal own-property true and never a truthy value', () => {
-  for (const value of ['true', 'false', 1, [], {}, null]) {
-    assert.equal(normalizeMomentsSettings({christian: value}).christian, false);
-    assert.equal(validateMomentsSettings({christian: value}).ok, false);
-    assert.equal(getMoment('morning', value).reference, null);
+test('every moment is Christian regardless of the legacy preference value', () => {
+  for (const value of ['true', 'false', 1, [], {}, null, false, true, undefined]) {
+    assert.notEqual(getMoment('morning', value).reference, null);
+    assert.match(getMoment('morning', value).id, /^christian-/);
   }
-  assert.equal(normalizeMomentsSettings(Object.create({christian: true})).christian, false);
-  assert.notEqual(getMoment('morning', true).reference, null);
+  for (const value of ['true', 1, [], {}, null]) assert.equal(validateMomentsSettings({christian: value}).ok, false);
+  assert.equal(normalizeMomentsSettings(Object.create({christian: false})).christian, true);
 });
 
 test('validation accepts missing optional fields and independent valid custom times', () => {
@@ -95,35 +94,23 @@ test('validation rejects malformed input and every invalid HH:mm value', () => {
   }
 });
 
-test('all six messages use static public-only data and explicit attribution', () => {
-  const neutralTexts = [
-    'Você não precisa resolver o dia inteiro agora. Escolha um pequeno começo e siga no seu ritmo.',
-    'Se o dia ficou pesado, faça uma pausa. Você pode ajustar o caminho e escolher só o próximo passo.',
-    'O que ficou pendente pode esperar um pouco. Reconheça o que foi possível hoje e dê espaço ao descanso.',
-  ];
+test('the three Christian messages use static public-only data and explicit attribution', () => {
   const references = ['Lamentações 3:22–23', 'Mateus 11:28', 'Salmo 4:8'];
   const ids = new Set();
   for (const [index, period] of PERIODS.entries()) {
-    for (const christian of [false, true]) {
-      const moment = getMoment(period.id, christian);
-      ids.add(moment.id);
-      assert.deepEqual(Object.keys(moment).sort(), ['id', 'period', 'label', 'title', 'text', 'reference', 'attribution', 'cardPath'].sort());
-      assert.equal(moment.period, period.id);
-      assert.equal(moment.label, period.label);
-      assert.equal(moment.cardPath, `assets/moments/${moment.id}.png`);
-      assert.match(moment.attribution, /Mentra Life/);
-      if (christian) {
-        assert.match(moment.attribution, /Paráfrase/);
-        assert.equal(moment.reference, references[index]);
-      } else {
-        assert.equal(moment.reference, null);
-        assert.equal(moment.text, neutralTexts[index]);
-        assert.doesNotMatch(moment.text, /Jesus|Deus|Senhor|misericórdia/i);
-      }
-      assert.doesNotMatch(moment.text, /Deus disse|prosperidade|curar|cura garantida|culpa|Marina|R\$|@|https?:/i);
-    }
+    const moment = getMoment(period.id);
+    ids.add(moment.id);
+    assert.deepEqual(Object.keys(moment).sort(), ['id', 'period', 'label', 'title', 'text', 'reference', 'attribution', 'cardPath'].sort());
+    assert.equal(moment.id, `christian-${period.id}`);
+    assert.equal(moment.period, period.id);
+    assert.equal(moment.label, period.label);
+    assert.equal(moment.cardPath, `assets/moments/${moment.id}.png`);
+    assert.match(moment.attribution, /Mentra Life/);
+    assert.match(moment.attribution, /Paráfrase/);
+    assert.equal(moment.reference, references[index]);
+    assert.doesNotMatch(moment.text, /Deus disse|prosperidade|curar|cura garantida|culpa|Marina|R\$|@|https?:/i);
   }
-  assert.equal(ids.size, 6);
+  assert.equal(ids.size, 3);
   for (const invalid of [undefined, null, 'bad', 'Morning', 0]) assert.throws(() => getMoment(invalid), RangeError);
 });
 
@@ -180,10 +167,10 @@ test('six real PNGs are decodable 1080x1920 and match the exact app text', () =>
   const expectedFiles = [];
   const faceHash = createHash('sha256').update(readFileSync(new URL('../dist/assets/mentra-face.png', import.meta.url))).digest('hex');
   assert.equal(faceHash, '7fd99528e76dc790e9675033e98a7c321b81c6e946f5d1478b646e6da70b7fb2', 'approved face remains unchanged');
-  for (const christian of [false, true]) {
+  for (const legacy of ['neutral', 'christian']) for (const {id} of PERIODS) expectedFiles.push(`${legacy}-${id}.png`);
+  {
     for (const {id} of PERIODS) {
-      const moment = getMoment(id, christian);
-      expectedFiles.push(`${moment.id}.png`);
+      const moment = getMoment(id);
       const bytes = readFileSync(new URL(`../dist/${moment.cardPath}`, import.meta.url));
       assert.ok(bytes.length > 100_000, 'full-size static PNG, not a placeholder');
       const png = readPng(bytes);

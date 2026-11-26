@@ -54,6 +54,9 @@ Manifest de instalação, ícone e instruções iPhone/iPad/Android preparados; 
 
 ### P06 — Identidade do operador, privacidade e suporte
 
+Termos, Aviso de Privacidade, consentimentos, arrependimento, exclusão e retenção implementados em 26/11/2026 ([JURIDICO-LGPD.md](JURIDICO-LGPD.md)). Faltam os dados reais da empresa em `dist/legal.mjs` e a revisão jurídica.
+
+
 - Informar nome/identificação do operador, contato, responsável e horários de suporte reais.
 - Aprovar/publicar termos e política compatíveis com sincronização, dados de saúde informados, notas opcionais e envio explícito à IA; definir retenção, exclusão e atendimento de solicitações de dados.
 - Decidir e implementar verificação de titularidade de e-mail e entrega transacional de mensagens, caso exigidas para a operação. Atualmente a recuperação usa código pessoal exibido uma vez, não e-mail.

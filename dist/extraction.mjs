@@ -12,7 +12,7 @@ export async function extractDocumentText(doc,{ocr=true,startPage=1,pageLimit=20
  const job=async()=>{
   const recognize=async image=>{
    assertLive(signal);
-   if(!workerPromise){const {default:Tesseract}=await import('./vendor/tesseract/tesseract.mjs');assertLive(signal);workerPromise=Tesseract.createWorker('por',1,{workerPath:new URL('./vendor/tesseract/worker.min.js',import.meta.url).href,corePath:new URL('./vendor/tesseract/core/',import.meta.url).href,langPath:new URL('./vendor/tesseract/lang/',import.meta.url).href,workerBlobURL:false,cacheMethod:'none',errorHandler:()=>rejectAbort(Error('O reconhecimento de texto não pôde ser concluído.')),logger:message=>{if(!signal?.aborted&&message.status==='recognizing text')onProgress(`Reconhecendo texto: ${Math.round(message.progress*100)}%`);}});worker=await workerPromise;assertLive(signal);}
+   if(!workerPromise){const {default:Tesseract}=await import('./vendor/tesseract/tesseract.mjs');assertLive(signal);workerPromise=Tesseract.createWorker('por',1,{workerPath:new URL('./vendor/tesseract/worker.min.js',import.meta.url).href,corePath:new URL('./vendor/tesseract/core/',import.meta.url).href,langPath:new URL('./vendor/tesseract/lang/',import.meta.url).href,gzip:!globalThis.mentraNative,workerBlobURL:false,cacheMethod:'none',errorHandler:()=>rejectAbort(Error('O reconhecimento de texto não pôde ser concluído.')),logger:message=>{if(!signal?.aborted&&message.status==='recognizing text')onProgress(`Reconhecendo texto: ${Math.round(message.progress*100)}%`);}});worker=await workerPromise;assertLive(signal);}
    return (await worker.recognize(image)).data.text;
   };
   if(doc.mime==='application/pdf'||String(doc.ext).toUpperCase()==='PDF'){

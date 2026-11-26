@@ -14,8 +14,8 @@ execFileSync(process.platform==='win32'?'python':'python3',['-c',`from pathlib i
 from zipfile import ZipFile, ZIP_DEFLATED
 import hashlib,json
 root=Path.cwd()
-skip={'.git','.wrangler','node_modules','.sites-runtime','.mentra-private','.vercel','.vercel-public','qa','__pycache__'}
-files=[p for p in root.rglob('*') if p.is_file() and not any(x in skip for x in p.relative_to(root).parts) and not p.relative_to(root).as_posix().startswith('dist/downloads/') and (p.suffix not in {'.zip','.tar','.gz'} or p.relative_to(root).as_posix()=='dist/handoff/mentra-handoff-completo.zip' or (p.relative_to(root).as_posix().startswith('dist/vendor/') and p.name.endswith('.traineddata.gz'))) and not p.name.startswith('.env') and not p.name.startswith('.dev.vars')]
+skip={'.git','.wrangler','node_modules','.sites-runtime','.mentra-private','.vercel','.vercel-public','.mobile-public','.gradle','build','Pods','DerivedData','qa','__pycache__'}
+files=[p for p in root.rglob('*') if p.is_file() and not any(x in skip for x in p.relative_to(root).parts) and not p.relative_to(root).as_posix().startswith('dist/downloads/') and (p.suffix not in {'.zip','.tar','.gz'} or p.relative_to(root).as_posix()=='dist/handoff/mentra-handoff-completo.zip' or (p.relative_to(root).as_posix().startswith('dist/vendor/') and p.name.endswith('.traineddata.gz'))) and p.suffix not in {'.jks','.keystore','.p12','.mobileprovision'} and not p.relative_to(root).as_posix().startswith('whatsapp-gateway/data/') and p.suffix != '.log' and p.name != 'wrangler.production.jsonc' and not p.name.startswith('.env') and not p.name.startswith('.dev.vars')]
 with ZipFile(root/'dist/downloads/mentra-life-codigo-fonte.zip','w',ZIP_DEFLATED) as z:
  for p in sorted(files): z.write(p,Path('mentra-life')/p.relative_to(root))
 manifest={'version':'12.0.0','files':{p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}}

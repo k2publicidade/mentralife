@@ -45,8 +45,11 @@ test('quarentena de restauração invalida sessões, links, conexões e envios s
  s.prepare('INSERT INTO whatsapp_links VALUES(?,?,?)').run('owner','5511999999999',1);
  s.prepare('INSERT INTO reminder_settings VALUES(?,?,?,?)').run('owner',1,'{}',1);
  s.prepare('INSERT INTO reminder_jobs VALUES(?,?,?,?,?,?)').run('job','owner',1,'/#/hoje','pending',1);
+ s.prepare('INSERT INTO native_push_devices VALUES(?,?,?,?,?)').run('device','owner','ios','a'.repeat(64),1);
+ s.prepare('INSERT INTO native_push_deliveries(job_id,device_id) VALUES(?,?)').run('job','device');
  s.prepare('INSERT INTO integration_inbox(id,user_id,source,kind,payload,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run('inbox','owner','whatsapp','text','{"text":"synthetic pending message"}','pending',1,1);
  const before=s.prepare('SELECT data FROM user_states').get().data;s.exec(readFileSync(new URL('../scripts/restore-quarantine.sql',import.meta.url),'utf8'));
+ assert.equal(s.prepare('SELECT COUNT(*) AS n FROM native_push_devices').get().n,0);assert.equal(s.prepare('SELECT COUNT(*) AS n FROM native_push_deliveries').get().n,0);
  assert.equal(s.prepare('SELECT COUNT(*) AS n FROM sessions').get().n,0);assert.equal(s.prepare('SELECT COUNT(*) AS n FROM calendar_connections').get().n,0);assert.equal(s.prepare('SELECT COUNT(*) AS n FROM whatsapp_links').get().n,0);assert.ok(s.prepare('SELECT revoked_at FROM document_shares').get().revoked_at);assert.equal(s.prepare('SELECT enabled FROM reminder_settings').get().enabled,0);assert.equal(s.prepare('SELECT status FROM reminder_jobs').get().status,'cancelled');assert.equal(s.prepare('SELECT data FROM user_states').get().data,before);
  assert.equal(s.prepare('SELECT status FROM integration_inbox').get().status,'discarded');assert.equal(s.prepare('SELECT payload FROM integration_inbox').get().payload,'{"text":"synthetic pending message"}');
 });

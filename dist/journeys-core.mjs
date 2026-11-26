@@ -354,3 +354,11 @@ export function mentorReply(journey, prompt) {
   }
   return {ok: true, text, suggestion, errors: [], source: 'local_demo'};
 }
+
+
+/** Exclui um plano do Impulso (com as etapas). */
+export function deleteJourney(state,id){
+ const journeys=Array.isArray(state?.journeys)?state.journeys:[];
+ if(!journeys.some(j=>j?.id===id))return {ok:false,state,errors:['Plano não encontrado.']};
+ return {ok:true,state:{...state,journeys:journeys.filter(j=>j?.id!==id)}};
+}
