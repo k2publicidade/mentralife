@@ -15,6 +15,7 @@ O Worker exige um segredo entre os serviços antes de aceitar as APIs privadas p
 | Onde | Nome | Valor/origem |
 | --- | --- | --- |
 | Worker, `vars` | `PUBLIC_ORIGIN` | Origem HTTPS definitiva `https://<projeto>.vercel.app` |
+| Worker, `vars` | `PUBLIC_ORIGIN_ALIASES` | Outros domínios do mesmo projeto Vercel, separados por vírgula (produção: `https://mentralife.com.br,https://www.mentralife.com.br`). Sem eles, cadastro, login e PIX pelo domínio próprio falham com "Origem inválida." |
 | Worker, secret | `VERCEL_ORIGIN_SECRET` | Valor já gerado em `.dev.vars.vercel` |
 | Vercel, variável privada | `VERCEL_ORIGIN_SECRET` | Exatamente o mesmo valor, sem prefixo de variável pública |
 | Vercel, variável | `MENTRA_WORKER_ORIGIN` | Origem HTTPS real do Worker, sem `/api` ou barra final |
