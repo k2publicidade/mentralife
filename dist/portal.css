@@ -3,14 +3,16 @@
    Movimento: só transform e opacity, curva de saída forte, hovers apenas com mouse.
    Com movimento reduzido, premium.css já zera animações e transições; aqui os estados
    ocultos só existem dentro de prefers-reduced-motion: no-preference. */
-.portal.site{--site-out:cubic-bezier(.23,1,.32,1);--site-pad:clamp(20px,4vw,56px);--site-gap:clamp(12px,1.6vw,24px);--site-band:clamp(72px,10vw,144px);--site-dark:linear-gradient(165deg,#1d4a3a,#12352a);--site-cream:#f4f1e6;--site-brass:#8b7350;--site-brass-light:#cdb780;max-width:none;margin:0;padding:0;color:var(--forest);overflow-x:clip}
+.portal.site{--site-out:cubic-bezier(.23,1,.32,1);--site-pad:clamp(20px,4vw,56px);--site-gap:clamp(12px,1.6vw,24px);--site-band:clamp(72px,10vw,144px);--site-inset:clamp(8px,1.2vw,16px);--site-dark:linear-gradient(165deg,#1d4a3a,#12352a);--site-cream:#f4f1e6;--site-brass:#8b7350;--site-brass-light:#cdb780;max-width:none;margin:0;padding:0;color:var(--forest);overflow-x:clip}
+.portal.site main{max-width:none;margin:0}
 .site .site-wrap{max-width:1280px;margin-inline:auto;padding-inline:var(--site-pad)}
+.site :is(.site-manifesto,footer)>.site-wrap{max-width:calc(1280px - 2*var(--site-inset));padding-inline:calc(var(--site-pad) - var(--site-inset))}
 .site :is(h2,h3){margin:0}
 .site .eyebrow{font-size:11px;letter-spacing:.2em;font-weight:600;margin-bottom:18px}
 
 /* Barra superior: flutua, e ganha corpo quando a página rola. */
-.portal.site .portal-nav{position:sticky;top:12px;z-index:30;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;width:min(1200px,calc(100% - 2*var(--site-pad) + 32px));height:auto;min-height:64px;margin:12px auto 0;padding:8px 8px 8px 16px;border:1px solid transparent;border-radius:999px;box-sizing:border-box;transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}
-.portal.site.is-scrolled .portal-nav{background-color:#fffefaf7;border-color:var(--line);box-shadow:0 10px 36px #173e3214;-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4)}
+.portal.site .portal-nav{position:sticky;top:12px;z-index:30;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;width:min(1200px,calc(100% - 2*var(--site-pad) + 32px));height:auto;min-height:64px;margin:12px auto 0;padding:8px 16px;border:1px solid transparent;border-radius:999px;box-sizing:border-box;transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}
+.portal.site.is-scrolled .portal-nav{background-color:#fffefaf7;border-color:var(--line);box-shadow:0 10px 36px #173e3214}
 .portal.site .portal-brand{order:0;margin-right:auto;gap:10px;font-size:22px;letter-spacing:-.02em}
 .portal.site .portal-brand img{width:36px;height:36px;border-radius:10px}
 .portal.site .portal-brand small{font-size:10px;letter-spacing:.3em;font-weight:500}
@@ -71,9 +73,10 @@
 .site .site-bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--site-gap)}
 .site .site-feature{position:relative;grid-column:span 7;display:flex;gap:clamp(24px,3vw,48px);min-height:clamp(280px,25vw,360px);padding:clamp(24px,2.8vw,44px);border:1px solid var(--line);border-radius:clamp(22px,2.4vw,32px);background:var(--paper);overflow:hidden}
 .site .site-feature:is(:nth-child(2),:nth-child(3)){grid-column:span 5;flex-direction:column;justify-content:space-between}
-.site .site-feature-copy{flex:0 0 38%;min-width:0}
+.site .site-feature-copy{flex:0 0 38%;min-width:0;display:flex;flex-direction:column}
+.site .site-feature-docs .site-feature-copy{flex-basis:32%}
 .site .site-feature:is(:nth-child(2),:nth-child(3)) .site-feature-copy{flex:none}
-.site .site-index{display:block;margin-bottom:clamp(20px,3vw,44px);font-size:12px;letter-spacing:.2em;font-weight:600;color:var(--site-brass);font-variant-numeric:tabular-nums}
+.site .site-index{display:block;margin-bottom:auto;padding-bottom:clamp(20px,3vw,44px);font-size:12px;letter-spacing:.2em;font-weight:600;color:var(--site-brass);font-variant-numeric:tabular-nums}
 .portal.site .site-feature h3{margin:0 0 10px;font-family:var(--serif);font-weight:400;font-size:clamp(26px,2.5vw,36px);line-height:1.1;letter-spacing:-.02em}
 .portal.site .site-feature p{max-width:24em;margin:0;font-size:15px;line-height:1.6;color:var(--muted)}
 .site .site-vig{flex:1;min-width:0}
@@ -113,8 +116,9 @@
 .site .site-paper i{height:5px;border-radius:3px;background:#e5eadf}
 .site .site-paper i:nth-of-type(2){width:78%}.site .site-paper i:nth-of-type(3){width:52%}
 .site .site-paper em{justify-self:start;margin-top:6px;padding:2px 7px;border:1px solid #d9c9a3;border-radius:6px;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--site-brass)}
-.site .site-paper:nth-child(1){transform:translateX(-104px) rotate(-12deg)}
-.site .site-paper:nth-child(2){transform:translateX(104px) rotate(10deg)}
+.site .site-paper:nth-child(1){transform:translateX(-82px) rotate(-10deg)}
+.site .site-paper:nth-child(2){transform:translateX(112px) rotate(8deg)}
+@media(min-width:861px){.site .site-feature-docs .site-paper{left:57%}}
 .site .site-paper:nth-child(3){transform:rotate(-1deg)}
 
 /* Planos */
@@ -137,6 +141,7 @@
 .portal.site .portal-plans>.featured li::before{border-color:var(--site-brass-light)}
 .portal.site .portal-plans>.featured>.primary{background:var(--site-cream)!important;color:var(--forest);box-shadow:none}
 .portal.site .site-plans-note{max-width:44em;color:var(--muted)}
+.portal.site .plan-fineprint{max-width:60em;font-size:13px;line-height:1.55;opacity:1}
 
 /* Acesso */
 .site .site-access-wrap{padding-block:var(--site-band)}
@@ -164,14 +169,14 @@
  .site .site-links a{transition:background-color .2s ease}
  .site .site-links a:hover{background:#173e320f}
  .portal.site .portal-nav #open-auth{transition:background-color .2s ease,transform .16s var(--site-out)}
- .portal.site .portal-nav #open-auth:hover{background:var(--green);transform:none}
+ .portal.site .portal-nav #open-auth:hover{background:var(--green)}
+ .portal.site .portal-nav #open-auth:active{transform:scale(.97)}
  .site .site-quiet:hover{text-decoration-color:currentColor}
  .portal.site .portal-plans>.featured>.primary:hover{background:#fff!important}
 }
 
 @media(prefers-reduced-motion:no-preference){
  /* Entrada do topo: título primeiro, depois o apoio; a Mentra chega por último e fica. */
- .portal.site .portal-nav{animation:site-fade .7s var(--site-out) backwards}
  .site .portal-hero .eyebrow{animation:site-fade .7s var(--site-out) .05s backwards}
  .site .site-line>span{animation:site-line .9s var(--site-out) .05s backwards}
  .site .site-line:nth-child(2)>span{animation-delay:.14s}
@@ -181,17 +186,17 @@
  .site .site-face-float{animation:site-float 9s ease-in-out 1.5s infinite}
  .site .site-orbit-a{animation:site-fade .9s var(--site-out) .3s backwards,site-spin 90s linear infinite reverse}
  .site .site-orbit-b{animation:site-fade .9s var(--site-out) .3s backwards,site-spin 130s linear infinite}
- .site .site-chip>div{animation:site-pop .6s var(--site-out) .6s backwards}
- .site .site-chip-money>div{animation-delay:.68s}
- .site .site-meter i{animation:site-meter .7s var(--site-out) .75s backwards}
+ .site .site-chip>div{animation:site-pop .6s var(--site-out) .4s backwards}
+ .site .site-chip-money>div{animation-delay:.47s}
+ .site .site-meter i{animation:site-meter .6s var(--site-out) .55s backwards}
  .site.is-hero-away :is(.site-orbit,.site-face-float){animation-play-state:paused}
 
  /* Revelações ao rolar. Sem JavaScript, .site-motion não existe e nada fica oculto. */
  .site-motion [data-reveal]:not(.is-in){opacity:0}
- .site-motion [data-reveal].is-in{animation:site-rise .9s var(--site-out) var(--d,0ms) backwards}
+ .site-motion [data-reveal].is-in{animation:site-reveal .6s var(--site-out) var(--d,0ms) backwards}
  .site-motion .site-word{opacity:.2;transition:opacity .5s ease}
  .site-motion .site-word.is-lit{opacity:1}
- .site-motion .site-wordmark.is-in{animation:site-wordmark 1.4s var(--site-out) backwards}
+ .site-motion .site-wordmark.is-in{animation:site-wordmark .9s var(--site-out) backwards}
 
  .site-motion .site-check svg{transition:opacity .3s var(--site-out) .55s,transform .3s var(--site-out) .55s}
  .site-motion .site-feature:not(.is-in) .site-check svg{opacity:0;transform:scale(.6)}
@@ -205,6 +210,7 @@
 }
 @keyframes site-fade{from{opacity:0}}
 @keyframes site-rise{from{opacity:0;transform:translateY(24px)}}
+@keyframes site-reveal{from{opacity:0;transform:translateY(14px)}}
 @keyframes site-line{from{transform:translateY(108%)}}
 @keyframes site-face{from{opacity:0;transform:scale(.94)}}
 @keyframes site-pop{from{opacity:0;transform:translateY(12px) scale(.95)}}
@@ -235,12 +241,12 @@
  .portal.site .portal-access{grid-template-columns:minmax(0,1fr)}
  .site .site-chip>div{padding:11px 14px;border-radius:15px}
  .site .site-chip b{font-size:13px}
- .site .site-chip-day{left:-8%}.site .site-chip-money{right:-8%}
+ .site .site-chip-day{left:-8%;top:3%}.site .site-chip-money{right:-8%;bottom:1%}
 }
 @media(max-width:480px){
  .portal.site .portal-nav #open-auth span,.portal.site .portal-brand small{display:none}
  .site .site-hero-actions .primary{width:100%;justify-content:center}
  .site .site-paper{width:132px;margin-left:-66px}
- .site .site-paper:nth-child(1){transform:translateX(-88px) rotate(-12deg)}
- .site .site-paper:nth-child(2){transform:translateX(88px) rotate(10deg)}
+ .site .site-paper:nth-child(1){transform:translateX(-72px) rotate(-10deg)}
+ .site .site-paper:nth-child(2){transform:translateX(72px) rotate(8deg)}
 }

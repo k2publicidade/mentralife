@@ -16,7 +16,7 @@ export function litCount(progress, total) {
 
 /** Atraso de cada item revelado no mesmo lote: passos que encurtam, para não soar mecânico. */
 export function staggerDelay(index) {
-  return Math.round(110 * index - 8 * index * (index - 1) / 2);
+  return Math.round(80 * index - 8 * index * (index - 1) / 2);
 }
 
 function splitWords(node) {

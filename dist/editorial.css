@@ -19,6 +19,7 @@
 @media(hover:hover) and (pointer:fine){
  .workspace .menu-card:hover{transform:translateY(-2px)}
  .workspace .menu-card:hover>svg:last-child{transform:translateX(4px);color:#173e32}
+ .workspace .menu-card:active{transform:scale(.97)}
 }
 
 /* Assinatura dentro do app: mesma linguagem dos planos do portal; o plano atual é o cartão escuro. */
@@ -63,3 +64,33 @@ body:has(.platform-toolbar) .workspace .top-actions .demo-indicator{display:none
 @media(min-width:761px) and (max-height:1000px){.sidebar .side-note{display:none}}
 .sidebar>nav{-webkit-mask-image:linear-gradient(#000 calc(100% - 20px),transparent);mask-image:linear-gradient(#000 calc(100% - 20px),transparent);padding-bottom:16px}
 @media(min-width:761px){.workspace button.attention-search{display:none!important}.workspace .home-intro .intro-actions{margin-top:8px}}
+
+/* Um cabeçalho só no desktop: a faixa da conta (nome, assinatura, sair, estado da sincronização)
+   passa para o pé da barra lateral, e a barra superior fica sozinha no topo. */
+@media(min-width:761px){
+ .has-platform-toolbar .sidebar{top:0;height:100vh;padding-bottom:168px}
+ .has-platform-toolbar .workspace .topbar{top:0}
+ .has-platform-toolbar #main-content{scroll-margin-top:0}
+ .has-platform-toolbar{scroll-padding-top:12px}
+ .sidebar~.platform-toolbar,.has-platform-toolbar .platform-toolbar{position:fixed;z-index:31;inset:auto auto 0 0;width:252px;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 8px;padding:16px 18px 18px;box-sizing:border-box;border-top:1px solid #ffffff14;background:#0f2c23}
+ .has-platform-toolbar .platform-toolbar>span{grid-column:1/-1;max-width:none;font-size:14px}
+ .has-platform-toolbar .platform-toolbar .sync-status{grid-column:1/-1;grid-row:2;justify-self:start;margin:0}
+ .has-platform-toolbar .platform-toolbar>:is(a,button){justify-content:center}
+}
+@media(min-width:761px) and (max-width:1100px){.has-platform-toolbar .platform-toolbar{width:220px;padding-inline:12px}}
+/* No celular a faixa da conta cabe em uma linha: o nome já está na saudação e no perfil. */
+@media(max-width:760px){.has-platform-toolbar .platform-toolbar>span{display:none!important}.has-platform-toolbar .platform-toolbar .sync-status{order:3!important}}
+
+/* Ajustes da segunda revisão crítica. */
+@media(min-width:761px){
+ /* Abertura da Hoje: a legenda fica ao lado do botão, não embaixo. */
+ .workspace .home-intro .intro-actions{flex-direction:row;align-items:center;gap:16px}
+ /* Controles da barra superior na mesma altura. */
+ .workspace .top-actions :is(.reading-control,.header-tool,.avatar){min-height:40px;height:40px}
+ .workspace .top-actions .avatar{width:40px}
+ .workspace .top-actions .reading-control{padding-block:0}
+ /* Ações do título em uma linha, em vez de três botões empilhados de larguras diferentes. */
+ .workspace .page-heading>.button-row{display:flex!important;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+}
+/* Cartões de "Mais áreas" com a mesma altura, mesmo quando um nome quebra em duas linhas. */
+.workspace :is(.menu-grid,.menu-cards){grid-auto-rows:1fr}
