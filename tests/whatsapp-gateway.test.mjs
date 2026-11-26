@@ -11,7 +11,7 @@ const origin='https://mentra.test',secret='a'.repeat(64);
 async function environment(){
  const DB=integrationDB(),env={DB,WHATSAPP_GATEWAY_SECRET:secret,DEEPSEEK_API_KEY:'synthetic-key'};
  async function call(path,{method='GET',data,cookie}={}){const r=await worker.fetch(new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined}),env);let body;try{body=await r.json();}catch{body=null;}return {status:r.status,body,cookie:r.headers.get('set-cookie')?.split(';')[0]};}
- const users=[];for(const name of ['Ana','Bia']){const r=await call('register',{method:'POST',data:{name,email:name+'@gateway.test',password:'synthetic-gateway-password',plan:'plus'}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie,recoveryCode:r.body.recoveryCode});}
+ const users=[];for(const name of ['Ana','Bia']){const r=await call('register',{method:'POST',data:{name,email:name+'@gateway.test',password:'synthetic-gateway-password',plan:'plus',acceptTerms:true}});assert.equal(r.status,200);users.push({...r.body.user,cookie:r.cookie,recoveryCode:r.body.recoveryCode});}
  DB.sql.prepare("UPDATE subscriptions SET status='active'").run();
  let n=0;
  async function gateway(body,{key=secret,timestamp=String(Date.now())}={}){const raw=JSON.stringify(body),r=await worker.fetch(new Request(origin+'/api/whatsapp/gateway',{method:'POST',headers:{'Content-Type':'application/json','x-mentra-timestamp':timestamp,'x-mentra-signature':'sha256='+createHmac('sha256',key).update(timestamp+'.'+raw).digest('hex')},body:raw}),env);return {status:r.status,body:await r.json()};}

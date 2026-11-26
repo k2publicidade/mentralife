@@ -8,6 +8,7 @@ function database(){
  const sql=new DatabaseSync(':memory:');
  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())
   sql.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ sql.exec("CREATE TRIGGER test_default_consents AFTER INSERT ON users BEGIN UPDATE users SET ai_consent_at=1,health_consent_at=1 WHERE id=NEW.id; END;");
  return {sql,prepare(text){let args=[];return {bind(...values){args=values;return this;},async first(){return sql.prepare(text).get(...args)||null;},async all(){return {results:sql.prepare(text).all(...args)};},async run(){if(/RETURNING/i.test(text))return {results:sql.prepare(text).all(...args)};const r=sql.prepare(text).run(...args);return {meta:{changes:Number(r.changes)}};}};},
   async batch(statements){sql.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 }
@@ -22,7 +23,7 @@ async function setup(t,extra={}){
  const call=(path,data,cookie,method)=>worker.fetch(new Request(backend+'/api/'+path,{
   method:method||(data?'POST':'GET'),headers:{Origin:origin,'x-mentra-origin-secret':secret,...(cookie?{Cookie:cookie}:{})},
   body:data?JSON.stringify(data):undefined}),env);
- const signup=await call('register',{name:'Teste',email:'six7pay@example.test',password:'synthetic-six7pay-password',plan:'essencial'});
+ const signup=await call('register',{name:'Teste',email:'six7pay@example.test',password:'synthetic-six7pay-password',plan:'essencial',acceptTerms:true});
  const cookie=signup.headers.get('set-cookie').split(';')[0];
  const me=async()=>(await (await call('me',null,cookie)).json());
  const age=ms=>DB.sql.exec(`UPDATE six7pay_orders SET created_at=created_at-${ms},checked_at=checked_at-${ms}`);
@@ -162,7 +163,7 @@ test('Six7Pay: recusa definitiva libera nova tentativa; chave sem SIX7PAY_CHECKO
 
 test('Six7Pay: estorno pelo admin devolve uma vez e retira os dias do pedido; estorno feito na Six7Pay é detectado',async t=>{
  const {env,DB,call,cookie,me,age}=await setup(t);
- const admin=await call('register',{name:'Admin',email:'admin-six7@example.test',password:'synthetic-admin-password',plan:'essencial'});
+ const admin=await call('register',{name:'Admin',email:'admin-six7@example.test',password:'synthetic-admin-password',plan:'essencial',acceptTerms:true});
  DB.sql.prepare("UPDATE users SET role='admin' WHERE email=?").run('admin-six7@example.test');
  const adminCookie=admin.headers.get('set-cookie').split(';')[0];
  let status='PENDING',txCount=0;const ids=['6aa5d6ac5f5fc577ba661748','6aa5d6ac5f5fc577ba661749'],charged={};

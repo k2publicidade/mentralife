@@ -1,4 +1,4 @@
-import {activeAccount,digest,limitedBytes,problem,response} from './integration-utils.mjs';
+import {activeAccount,aiConsented,AI_CONSENT_MESSAGE,digest,limitedBytes,problem,response} from './integration-utils.mjs';
 export const AUDIO_LIMIT=2*1024*1024;
 let activeTranscriptions=0;
 export function audioFormat(bytes,mime){let type=String(mime).split(';')[0].trim().toLowerCase();type=({'audio/x-m4a':'audio/mp4','audio/mp3':'audio/mpeg','audio/wave':'audio/wav','audio/vnd.wave':'audio/wav'})[type]||type;const ascii=(a,b)=>String.fromCharCode(...bytes.slice(a,b));const signatures={'audio/wav':ascii(0,4)==='RIFF'&&ascii(8,12)==='WAVE','audio/x-wav':ascii(0,4)==='RIFF'&&ascii(8,12)==='WAVE','audio/ogg':ascii(0,4)==='OggS','audio/webm':bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf&&bytes[3]===0xa3,'audio/mpeg':ascii(0,3)==='ID3'||bytes[0]===255&&(bytes[1]&0xe0)===0xe0,'audio/mp4':ascii(4,8)==='ftyp','audio/aac':bytes[0]===255&&(bytes[1]&0xf6)===0xf0};if(!signatures[type]||!bytes.length||bytes.length>AUDIO_LIMIT)problem('Envie WAV, OGG, WebM, MP3, M4A ou AAC válidos, com até 2 MB.');return type;}
@@ -6,6 +6,7 @@ export async function transcribeAudio(env,userId,bytes,mime,{timeoutMs=60000}={}
  audioFormat(bytes,mime);
  if(!env.AI)problem('A transcrição aguarda ativação do Workers AI na Cloudflare.',503);
  if(!await activeAccount(env.DB,userId))problem('Ative sua assinatura para transcrever áudio.',403);
+ if(!await aiConsented(env.DB,userId))problem(AI_CONSENT_MESSAGE,428);
  const hash=await digest(bytes),now=Date.now(),old=await env.DB.prepare('SELECT * FROM audio_requests WHERE user_id=? AND audio_hash=?').bind(userId,hash).first();
  if(old?.status==='ready')return {text:old.text,audioHash:hash,reused:true};
  if(old?.lease_until>now)problem('Este áudio já está sendo transcrito. Aguarde e tente consultar novamente.',409);

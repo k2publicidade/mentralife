@@ -1,6 +1,6 @@
 import {accountAIContext} from './ai-context.mjs';
 import {actionTools,actionInstructions,claimAIRequest,prepareActions,commitActions} from './ai-actions.mjs';
-import {digest,problem,activeAccount} from './integration-utils.mjs';
+import {digest,problem,activeAccount,aiConsented,AI_CONSENT_MESSAGE} from './integration-utils.mjs';
 import {readState} from './state.mjs';
 import {reconcileReminders} from './push.mjs';
 import {validTimeZone} from '../dist/time.mjs';
@@ -9,6 +9,7 @@ import {loadGuidance,guidancePrompt} from './brain.mjs';
 export async function chat(env,user,b,plans,{fetcher=fetch,channel,fingerprintLast=false}={}){
  const db=env.DB,sub=await db.prepare('SELECT * FROM subscriptions WHERE user_id=?').bind(user.id).first();
  if(!await activeAccount(db,user.id))problem('Sua assinatura precisa estar ativa para usar a IA.',403);
+ if(!await aiConsented(db,user.id))problem(AI_CONSENT_MESSAGE,428);
  if(!env.DEEPSEEK_API_KEY)problem('A conexão com a Mentra IA ainda está sendo configurada.',503);
  if(!Array.isArray(b.messages)||!b.messages.length||b.messages.length>30||b.messages.some(m=>!m||typeof m!=='object'||!['user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>4000))problem('Conversa inválida.');
  const personal=await readState(db,user.id),profile=personal.data?.profile,memory=profile?.memoryEnabled===true&&typeof profile.aiMemory==='string'?profile.aiMemory.slice(0,2000):'';

@@ -38,7 +38,7 @@ const index=resolve(target,'index.html');
 const policy="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' "+origin+"; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
 writeFileSync(index,readFileSync(index,'utf8').replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+policy+'">'));
 const adminPage=resolve(target,'admin.html');writeFileSync(adminPage,readFileSync(adminPage,'utf8').replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+policy+'">').replace('width=device-width,initial-scale=1','width=device-width,initial-scale=1,viewport-fit=cover').replace('</head>','<link rel="stylesheet" href="mobile.css"></head>'));
-for(const aux of ['share.html','calendar-callback.html']){const p=resolve(target,aux);if(existsSync(p))writeFileSync(p,readFileSync(p,'utf8').replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+policy+'">'));}
+for(const aux of ['share.html','calendar-callback.html','termos.html','privacidade.html','excluir-conta.html']){const p=resolve(target,aux);if(existsSync(p))writeFileSync(p,readFileSync(p,'utf8').replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+policy+'">'));}
 writeFileSync(resolve(target,'mobile-build.json'),JSON.stringify({apiOrigin:origin,appId:JSON.parse(readFileSync('capacitor.config.json')).appId},null,2));
 if(!existsSync(resolve(target,'index.html')))throw Error('Entrada mobile ausente.');
 console.log('App mobile empacotado em .mobile-public; API: '+origin);

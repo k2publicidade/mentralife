@@ -1,6 +1,6 @@
 // Ponte entre o gateway de WhatsApp (sessão por QR Code, fora da Cloudflare) e a Mentra IA.
 // O gateway só transporta mensagens: identidade, assinatura, contexto, ações e cota ficam aqui.
-import {activeAccount,digest,enc,integrationBody,limitedBytes,problem,response} from './integration-utils.mjs';
+import {activeAccount,aiConsented,digest,enc,integrationBody,limitedBytes,problem,response} from './integration-utils.mjs';
 import {readState} from './state.mjs';
 import {chat} from './chat.mjs';
 import {transcribeAudio,AUDIO_LIMIT} from './audio.mjs';
@@ -97,6 +97,7 @@ async function handleMessage(env,m,plans,options){
   const now=Date.now(),hashed=await digest(code.toLowerCase()),pending=await db.prepare('SELECT c.user_id,u.name FROM whatsapp_link_codes c JOIN users u ON u.id=c.user_id WHERE c.code_hash=? AND c.expires_at>?').bind(hashed,now).first();
   if(!pending)return 'Este código é inválido ou já expirou. Gere um novo no aplicativo, em Conexões e lembretes, e envie novamente.';
   if(!await activeAccount(db,pending.user_id))return 'Sua assinatura precisa estar ativa para conectar o WhatsApp à Mentra.';
+  if(!await aiConsented(db,pending.user_id))return 'Para conversar com a Mentra pelo WhatsApp, autorize primeiro a Mentra IA no app, em Meu espaço → Privacidade.';
   const takenRows=(await db.prepare(`SELECT DISTINCT user_id FROM whatsapp_links WHERE phone IN(${marks})`).bind(...ids).all()).results;
   if(takenRows.some(r=>r.user_id!==pending.user_id))return 'Este número já está conectado a outra conta. Envie PARAR para desconectá-lo antes de usar um novo código.';
   await db.batch([db.prepare('DELETE FROM whatsapp_links WHERE user_id=?').bind(pending.user_id),db.prepare('INSERT INTO whatsapp_links(user_id,phone,linked_at) VALUES(?,?,?)').bind(pending.user_id,m.from,now),db.prepare('DELETE FROM whatsapp_link_codes WHERE user_id=?').bind(pending.user_id),db.prepare("UPDATE integration_inbox SET payload='{}',status='discarded',error=NULL,lease_until=0,updated_at=? WHERE user_id=? AND status IN('pending','processing','ready','failed')").bind(now,pending.user_id)]);
@@ -105,6 +106,7 @@ async function handleMessage(env,m,plans,options){
  const matchedUsers=(await db.prepare(`SELECT DISTINCT u.id,u.email,u.name,u.role FROM whatsapp_links l JOIN users u ON u.id=l.user_id WHERE l.phone IN(${marks})`).bind(...ids).all()).results;
  const user=matchedUsers.length===1?matchedUsers[0]:null;
  if(!user)return await oncePerDay(db,'unknown',m.from)?`Olá! Eu sou a Mentra. 💚\n\nPara conversar comigo por aqui, conecte este número à sua conta: abra ${site}, entre na sua conta e toque em Conectar meu WhatsApp na tela inicial.`:null;
+ if(!await aiConsented(db,user.id))return await oncePerDay(db,'ai_consent',m.from)?`Para conversar com a Mentra por aqui, autorize a Mentra IA no app, em Meu espaço → Privacidade (${site}).`:null;
  if(!await activeAccount(db,user.id))return await oncePerDay(db,'inactive',m.from)?`Sua assinatura da Mentra não está ativa no momento. Assim que ela for ativada, voltamos a conversar por aqui. Veja seu plano em ${site}.`:null;
  if(options?.admitOnly)return {user};
  let question=text;
@@ -124,7 +126,7 @@ async function handleMessage(env,m,plans,options){
 async function linkedUser(db,m){
  if(!validId(m?.from))problem('Remetente inválido.');
  const ids=[...new Set([m.from,m.alt].filter(validId))],rows=(await db.prepare(`SELECT DISTINCT u.id,u.email,u.name,u.role FROM whatsapp_links l JOIN users u ON u.id=l.user_id WHERE l.phone IN(${ids.map(()=>'?').join(',')})`).bind(...ids).all()).results;
- return rows.length===1&&await activeAccount(db,rows[0].id)?rows[0]:null;
+ return rows.length===1&&await activeAccount(db,rows[0].id)&&await aiConsented(db,rows[0].id)?rows[0]:null;
 }
 const NOT_LINKED='Este número não está conectado a uma conta ativa da Mentra.';
 

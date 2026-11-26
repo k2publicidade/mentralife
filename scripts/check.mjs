@@ -7,3 +7,4 @@ for(const directory of ['dist','server','scripts','mobile','whatsapp-gateway']){
  }
 }
 console.log('Sintaxe verificada: interface, API e scripts.');
+execFileSync(process.execPath,['scripts/legal-pages.mjs','--check'],{stdio:'inherit'});

@@ -11,7 +11,7 @@ Atualizado em 14/11/2026. App: **Mentra Life**, identificador `app.mentralife.mo
 | Push nativo (FCM / APNs) com permissão explícita | ✔ (requer `google-services.json`) | ✔ (requer chave APNs no Worker) |
 | Microfone para mensagens de voz | `RECORD_AUDIO` | `NSMicrophoneUsageDescription` |
 | Câmera/fotos para documentos | via seletor do sistema | textos de permissão |
-| Exclusão de conta dentro do app (exigência Apple 5.1.1(v) / Google) | ✔ Meu espaço › Excluir minha conta | ✔ |
+| Exclusão de conta dentro do app (exigência Apple 5.1.1(v) / Google) | ✔ Meu espaço › Excluir minha conta (também com plano ativo) e página web `/excluir-conta` | ✔ |
 | Exportação dos dados da conta | ✔ | ✔ |
 | Cobrança: o app nativo **não** mostra preço nem abre checkout externo | ✔ | ✔ |
 | Build de loja | `.aab` assinado com upload key | archive + TestFlight via CI |
@@ -65,7 +65,7 @@ Apple (diretriz 3.1.1) e Google Play (política de pagamentos) exigem a cobranç
 - **Depois:** implementar compras no app (StoreKit + Google Play Billing, por exemplo via RevenueCat) com validação no servidor. É um projeto próprio, fora deste pacote.
 
 ### 4. Fichas das lojas
-- **Política de privacidade** em URL pública (obrigatória nas duas lojas) e URL de suporte.
+- **Política de privacidade** em URL pública (obrigatória nas duas lojas) e URL de suporte: `/privacidade`, `/termos` e `/excluir-conta` (ver [JURIDICO-LGPD.md](JURIDICO-LGPD.md)).
 - **Google Play:** formulário *Segurança dos dados* (conta: nome/e-mail; conteúdo do usuário: documentos, fotos, áudio; finanças pessoais informadas; saúde informada; tudo criptografado em trânsito; exclusão disponível), declaração de *Recursos financeiros* (gestão de finanças pessoais, sem empréstimos), declaração de *Apps de saúde* se o bem-estar for destacado, classificação de conteúdo, público-alvo 18+, ícone 512×512, gráfico de destaque 1024×500 e pelo menos 2 capturas de celular.
 - **App Store:** rótulos de privacidade equivalentes, categoria (Produtividade), capturas de iPhone 6,9" (1320×2868) e, como o app também roda em iPad, capturas de iPad 13" (ou limite o app a iPhone: `TARGETED_DEVICE_FAMILY = 1`).
 - **Conta de revisão (as duas lojas):** criar uma conta dedicada em produção e **ativá-la no /admin**. Sem assinatura ativa a Mentra IA não responde e o revisor vai reprovar. Informe e-mail e senha só nos campos de acesso de revisão das lojas.

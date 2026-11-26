@@ -23,7 +23,11 @@ test('hosting validates configuration, keeps development unchanged, and permits 
  for(const path of ['/api/health','/api/whatsapp/webhook']){const r=new Request(backend+path);assert.equal(await hostedRequest(r,env),r);}
 });
 test('deployment requires distinct HTTPS origins and rejects credentials, paths and missing shared secret',()=>{
- assert.deepEqual(vercelEnvironment({...env,MENTRA_WORKER_ORIGIN:backend}),{workerOrigin:backend,publicOrigin:origin});
+ const company={legalName:'Empresa Teste Ltda',cnpj:'00.000.000/0001-00',address:'Rua Teste, 1, São Paulo/SP, 01000-000',email:'contato@example.test',phone:'(11) 0000-0000',supportHours:'Seg. a sex., 9h às 18h'};
+ assert.deepEqual(vercelEnvironment({...env,MENTRA_WORKER_ORIGIN:backend},company),{workerOrigin:backend,publicOrigin:origin});
+ // Decreto 7.962/2013: sem a identificação completa da empresa, o site não é publicado (salvo rascunho explícito).
+ assert.throws(()=>vercelEnvironment({...env,MENTRA_WORKER_ORIGIN:backend},{...company,cnpj:''}),/CNPJ/);
+ assert.deepEqual(vercelEnvironment({...env,MENTRA_WORKER_ORIGIN:backend,MENTRA_ALLOW_LEGAL_DRAFT:'1'},{...company,cnpj:''}),{workerOrigin:backend,publicOrigin:origin});
  for(const value of ['http://insecure.example','https://user:pass@host.example','https://host.example/path','https://host.example/?secret=value'])assert.throws(()=>httpsOrigin(value));
  assert.throws(()=>vercelEnvironment({...env,MENTRA_WORKER_ORIGIN:origin}));assert.throws(()=>vercelEnvironment({PUBLIC_ORIGIN:origin,MENTRA_WORKER_ORIGIN:backend}));
 });
@@ -36,7 +40,7 @@ test('Cloudflare target uses the public Vercel origin for links and OAuth withou
 test('Vercel static output omits source packages, handoff, secrets and unapproved directories',()=>{
  const root=mkdtempSync(join(tmpdir(),'mentra-vercel-'));
  try{
-  mkdirSync(join(root,'dist'));for(const name of ['index.html','admin.html','share.html','calendar-callback.html','push-sw.js','skip-link.mjs'])writeFileSync(join(root,'dist',name),'public');
+  mkdirSync(join(root,'dist'));for(const name of ['index.html','admin.html','share.html','calendar-callback.html','termos.html','privacidade.html','excluir-conta.html','legal.css','push-sw.js','skip-link.mjs'])writeFileSync(join(root,'dist',name),'public');
   for(const folder of ['downloads','handoff','unexpected','assets']){mkdirSync(join(root,'dist',folder));writeFileSync(join(root,'dist',folder,'file.json'),'fixture');}
   writeFileSync(join(root,'dist','.env'),'secret');writeFileSync(join(root,'dist','dump.sql'),'private');
   copyVercelAssets(root);const out=join(root,'.vercel-public');assert.ok(existsSync(join(out,'assets','file.json')));
