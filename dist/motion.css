@@ -1,0 +1,33 @@
+/* Ajustes de movimento do aplicativo, carregados por último.
+   O app é usado várias vezes ao dia: aqui o movimento só confirma uma ação ou situa uma mudança.
+   Cada bloco corrige um ponto encontrado na auditoria de 26/11/2026. */
+
+/* 1. Hover só existe com mouse. No toque, o estado de hover "gruda" depois do toque
+      e deixava cartões e atalhos deslocados. */
+@media(hover:none),(pointer:coarse){
+ .attention-item a:hover,.side-link:not(.active):hover,.side-link:hover svg,a.card:hover,.card:has(>a.stretched):hover,
+ :where(.quick-actions,.home-shortcuts,.shortcut-row) a:hover,:where(.capture-buttons) button:hover,
+ .primary:not(.light):hover:not(:disabled),:where(.tabs) a:hover,
+ :where(.primary,.outline,.text-link,a.card,.moment-today-cta):hover svg:last-child,
+ button.moment-card-preview:hover .moment-card-thumb,
+ .quick-card:hover,.delivery-tile:hover,.path-card:hover,.journey-track-card:hover,.menu-card:hover,.home-shortcut:hover,.home-impulso-path:hover{transform:none}
+}
+
+/* 2. Cartões de valores não são clicáveis: números que a pessoa lê não se movem por estilo. */
+:where(.metric,.stat,.balance-card,.finance-summary>*):hover{transform:none}
+
+/* 3. O aviso anima só o que precisa (antes: transition em todas as propriedades). */
+#toast{transition:opacity .22s cubic-bezier(.23,1,.32,1),transform .22s cubic-bezier(.23,1,.32,1)}
+
+/* 4. Resposta ao toque nos alvos que não tinham nenhuma: atalhos, cartões de área e navegação. */
+:is(.home-shortcut,.menu-card,.quick-card,.home-impulso-path,.icon-button,.check-button,.small-button,.side-link,.mobile-nav a):active{transform:scale(.97);transition:transform .16s cubic-bezier(.23,1,.32,1)}
+
+@media(prefers-reduced-motion:no-preference){
+ /* 5. Diálogos surgem do centro, perto do tamanho final, em vez de subir pela tela. */
+ .modal{animation:motion-dialog .2s cubic-bezier(.23,1,.32,1) both}
+ /* 6. O conteúdo de uma seção recolhível aparece em vez de saltar. */
+ .account-disclosure[open]>:not(summary){animation:motion-open .2s cubic-bezier(.23,1,.32,1) both}
+ .account-disclosure>summary>span:last-child{transition:transform .2s cubic-bezier(.23,1,.32,1)}
+}
+@keyframes motion-dialog{from{opacity:0;transform:scale(.97)}}
+@keyframes motion-open{from{opacity:0;transform:translateY(-4px)}}

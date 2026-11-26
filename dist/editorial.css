@@ -1,0 +1,41 @@
+/* Passe editorial do aplicativo: leva para as telas internas a mesma voz do portal
+   (títulos Fraunces maiores e mais fechados, latão nos rótulos, verde profundo para o que está escolhido),
+   sem mudar estrutura nem fluxo. Carregado depois de portal.css. */
+
+/* Títulos de página e de seção com presença editorial no desktop. */
+@media(min-width:761px){
+ .workspace .page-heading h1{font-size:clamp(40px,4vw,60px);line-height:1.03;letter-spacing:-.03em}
+ .workspace .home-section-heading h2{font-size:clamp(32px,2.8vw,42px);line-height:1.1;letter-spacing:-.025em}
+}
+.workspace .page-heading .eyebrow{color:#8b7350}
+
+/* Valores comparáveis alinham por coluna. */
+.workspace :is(.balance-card strong,.plan-price strong,.home-finance strong,.home-finance-metrics,.home-finance-detail){font-variant-numeric:tabular-nums}
+
+/* "Mais áreas": cada destino com ícone em medalhão e nome legível à distância. */
+.workspace .menu-card{gap:16px;padding:22px;border-radius:20px;font-size:17px;letter-spacing:-.01em}
+.workspace .menu-card>svg:first-child{flex:none;box-sizing:content-box;width:22px;height:22px;padding:11px;border-radius:14px;background:#e9eedd;color:#173e32}
+.workspace .menu-card>svg:last-child{transition:transform .2s cubic-bezier(.23,1,.32,1)}
+@media(hover:hover) and (pointer:fine){
+ .workspace .menu-card:hover{transform:translateY(-2px)}
+ .workspace .menu-card:hover>svg:last-child{transform:translateX(4px);color:#173e32}
+}
+
+/* Assinatura dentro do app: mesma linguagem dos planos do portal; o plano atual é o cartão escuro. */
+.workspace .portal-plans>.card{gap:14px;padding:clamp(24px,2.4vw,34px);border-radius:28px!important}
+.workspace .portal-plans>.card>h2{font-family:var(--serif);font-weight:400;font-size:clamp(30px,2.8vw,40px);line-height:1.05;letter-spacing:-.02em}
+.workspace .portal-plans>.card>:is(.primary,.outline){min-height:52px;border-radius:999px}
+.workspace .portal-plans>.plan-selected{border-color:#2c5a48!important;background:linear-gradient(165deg,#1d4a3a,#12352a)!important;color:#f4f1e6;box-shadow:0 34px 60px -28px #102f2680}
+.workspace .portal-plans>.plan-selected>p,.workspace .portal-plans>.plan-selected .plan-price :is(small,.plan-price-from){color:#c5d2c3}
+.workspace .portal-plans>.plan-selected>.outline{background:#f4f1e6;border-color:#f4f1e6;color:#173e32}
+.workspace .portal-plans>.plan-selected>.outline:disabled{background:#f4f1e6!important;color:#173e32!important}
+.workspace .portal-plans>.plan-selected .plan-price,.workspace .portal-plans>.plan-selected .plan-price strong{color:#f4f1e6}
+
+/* Saúde: o cartão de registro volta a ser verde-escuro. Uma regra global de cartões o deixava claro,
+   com o texto creme quase invisível (contraste de 1,1:1). */
+.workspace .health-checkin.card{border-color:#2c5a48!important;background:linear-gradient(165deg,#1d4a3a,#12352a)!important}
+
+/* Hoje: a abertura repete os anéis do portal atrás da Mentra, parados, e fecha o título. */
+.workspace .home-intro h1{letter-spacing:-.035em}
+.workspace .home-intro .hero-mascot::before,.workspace .home-intro .hero-mascot::after{content:"";position:absolute;z-index:0;left:50%;top:50%;width:104%;aspect-ratio:1;border:1px solid #f4f1e61a;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.workspace .home-intro .hero-mascot::after{width:136%;border-style:dashed;border-color:#f4f1e612}
