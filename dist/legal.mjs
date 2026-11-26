@@ -1,16 +1,16 @@
 // Fonte única dos dados da empresa e dos textos legais (Termos de Uso e Aviso de Privacidade).
 // As páginas públicas termos.html, privacidade.html e excluir-conta.html são geradas a partir
 // deste arquivo por scripts/legal-pages.mjs; o app usa as mesmas funções em Planos e em Meu espaço.
-// Preencha COMPANY antes do lançamento: scripts/build-vercel.mjs recusa publicar com campos vazios.
+// scripts/build-vercel.mjs recusa publicar se faltar algum campo de REQUIRED_COMPANY_FIELDS.
 
 export const COMPANY = {
- legalName: '',            // Nome empresarial (razão social), como no CNPJ
+ legalName: 'Nexo Entretenimento e Eventos Culturais Ltda', // Nome empresarial (razão social), como no CNPJ
  tradeName: 'Mentra Life', // Nome fantasia / marca
- cnpj: '',                 // 00.000.000/0000-00
- address: '',              // Endereço físico completo, com CEP
+ cnpj: '68.825.713/0001-28',
+ address: 'Rua Carlos Machado, 152, Lote 18, LTM 41784, Quadra 8, Barra Olímpica, Rio de Janeiro/RJ, CEP 22775-042',
  email: 'contato@mentralife.com.br',
- phone: '',                // Telefone ou WhatsApp de atendimento
- supportHours: '',         // Ex.: segunda a sexta, das 9h às 18h (horário de Brasília)
+ phone: '',                // Opcional. Telefone ou WhatsApp de atendimento
+ supportHours: 'todos os dias, 24 horas (atendimento automatizado)',
  site: 'https://mentralife.com.br',
  dpoName: '',              // Encarregado pelo tratamento de dados pessoais (LGPD, art. 41)
  dpoEmail: ''              // Canal do encarregado; se vazio, usa COMPANY.email
@@ -33,7 +33,7 @@ export const LEGAL = {
  backupRetentionDays: 90
 };
 
-export const REQUIRED_COMPANY_FIELDS = {legalName:'nome empresarial',cnpj:'CNPJ',address:'endereço físico',email:'e-mail de atendimento',phone:'telefone ou WhatsApp de atendimento',supportHours:'horário de atendimento'};
+export const REQUIRED_COMPANY_FIELDS = {legalName:'nome empresarial',cnpj:'CNPJ',address:'endereço físico',email:'e-mail de atendimento',supportHours:'horário de atendimento'};
 export function missingCompanyFields(company=COMPANY){return Object.entries(REQUIRED_COMPANY_FIELDS).filter(([key])=>!String(company[key]||'').trim()).map(([,label])=>label);}
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
