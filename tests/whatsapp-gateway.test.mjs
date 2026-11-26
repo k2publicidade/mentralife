@@ -150,6 +150,7 @@ test('agente externo: gate, contexto por conta, ação gravada e registro da con
 
 test('agente externo: foto lida por OCR, conta a pagar, recibo e documento guardado na conta certa',async()=>{const c=await environment(),[a,b]=c.users,from='5511911111111';try{
  const jpeg=Buffer.concat([Buffer.from([255,216,255,224]),Buffer.alloc(300,7)]),photo=jpeg.toString('base64'),seen=[];
+ delete c.env.DEEPSEEK_API_KEY;// este teste cobre a leitura pelo Workers AI; a do DeepSeek está em vision.test.mjs
  c.env.AI={run:async(model,input)=>{seen.push({model,input});return {response:'BANCO AURORA\nComprovante de pagamento Pix\nValor: R$ 187,45\nData: 18/11/2026'};},toMarkdown:async()=>({format:'markdown',data:'# a.pdf\n## Metadata\n- x\n## Contents\n### Page 1\nContrato de aluguel'})};
  assert.match((await c.gateway({event:'read',id:'r-0',from,data:photo})).body.error,/não está conectado/);assert.equal(seen.length,0);
  const code=await c.call('whatsapp/link',{method:'POST',cookie:a.cookie,data:{consent:true}});await c.gateway({event:'gate',id:'g-1',from,text:code.body.command});

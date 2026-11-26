@@ -182,7 +182,7 @@ test('exportação inclui pedidos, consentimentos e registros de acesso',async t
 test('páginas legais publicadas estão em dia com dist/legal.mjs e cobrem as exigências',()=>{
  for(const [file,content] of Object.entries(legalPages()))assert.equal(readFileSync(new URL('../'+file,import.meta.url),'utf8').replace(/\r\n/g,'\n'),content,file+' desatualizado: rode node scripts/legal-pages.mjs');
  const terms=termsSections({plans:DEFAULT_PLANS}).map(s=>s.title+s.body.join('')).join('').replace(/ /g,' ');
- for(const needle of ['art. 49','não há renovação automática','Teste gratuito','App Store','Google Play','Desconectar calendário','myaccount.google.com/permissions','Apagar meus dados','Excluir minha conta','Contestação','Cobrança indevida','R$ 99,90','R$ 67,00','2.000 mensagens'])assert.ok(terms.includes(needle),needle);
+ for(const needle of ['art. 49','não renova sozinho','renova automaticamente','Teste grátis de 30 dias','Cancelar renovação automática','estornamos na mesma hora','App Store','Google Play','Desconectar calendário','myaccount.google.com/permissions','Apagar meus dados','Excluir minha conta','Contestação','Cobrança indevida','R$ 99,90','R$ 67,00','2.000 mensagens'])assert.ok(terms.includes(needle),needle);
  const privacy=privacySections().map(s=>s.title+s.body.join('')).join('');
  for(const needle of ['Encarregado','art. 11, I','art. 33','DeepSeek','China','Cloudflare','Six7Pay','art. 18','ANPD','Marco Civil'])assert.ok(privacy.includes(needle),needle);
  assert.match(readFileSync(new URL('../dist/excluir-conta.html',import.meta.url),'utf8'),/id="deletion-form"/);

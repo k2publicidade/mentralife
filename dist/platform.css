@@ -14,3 +14,33 @@
 .plan-prompt-actions button{flex:1 1 180px;min-height:48px}
 @media (prefers-reduced-motion:no-preference){.plan-prompt[open]{animation:plan-prompt-in .22s ease-out}}
 @keyframes plan-prompt-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+/* Cartão: teste grátis, cartão salvo e assinatura com renovação automática (card-ui.mjs) */
+.billing-card{display:grid;gap:12px;margin:0 0 24px}
+.billing-card h2{margin:0}
+.billing-card>p{margin:0;line-height:1.55}
+.billing-trial{border:2px solid var(--green,#2f6f57)}
+.billing-subscribe>summary{cursor:pointer;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;min-height:44px;padding:4px 0}
+.billing-subscribe>summary span{color:var(--muted);font-size:14px}
+.billing-subscribe[open]>summary{margin-bottom:12px}
+.billing-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.billing-change>summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
+.card-form{display:grid;gap:16px}
+.card-form fieldset{border:0;margin:0;padding:0;min-width:0}
+.card-form legend{font-weight:700;margin-bottom:8px;padding:0}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card-field{display:grid;gap:6px;min-width:0}
+.card-field>span{font-size:14px;font-weight:600}
+.card-field input,.card-field select{width:100%;min-height:48px;box-sizing:border-box}
+.card-field small{color:var(--muted);font-size:12px}
+.card-plans{display:grid;gap:8px}
+.card-plan{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;cursor:pointer;background:var(--paper,#fffefa)}
+.card-plan:has(input:checked){border-color:var(--green,#2f6f57);box-shadow:0 0 0 1px var(--green,#2f6f57)}
+.card-plan input{margin-top:4px;flex-shrink:0}
+.card-plan span{display:grid;gap:2px}
+.card-plan small{color:var(--muted)}
+.plans-pix-title{font-size:20px;margin:8px 0 4px}
+.plans-pix-help{margin:0 0 12px}
+@media (max-width:600px){.card-grid{grid-template-columns:1fr 1fr}.card-field-number,.card-field-holderName,.card-field-name,.card-field-street,.card-field-city{grid-column:1/-1}}
+.card-plan input[type="radio"],.card-form .legal-accept input[type="checkbox"]{width:20px;height:20px;min-height:0;min-width:20px;padding:0;margin:3px 0 0;flex:0 0 20px;box-shadow:none}
+.card-plan>span{flex:1 1 auto;min-width:0}
+@media (max-width:600px){.card-field-cpf,.card-field-phone{grid-column:1/-1}}
