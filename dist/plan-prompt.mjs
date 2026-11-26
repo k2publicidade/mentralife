@@ -19,8 +19,11 @@ export function planPromptState(subscription={},now=Date.now()){
  return 'pending';
 }
 
-export function planPromptMarkup({subscription={},native=false,now=Date.now(),name=''}={}){
+export function planPromptMarkup({subscription={},native=false,now=Date.now(),name='',billing=null}={}){
  const state=planPromptState(subscription,now),first=String(name||'').trim().split(/\s+/)[0];
+ // Site: conta nova com direito ao teste grátis ou renovação recusada no cartão.
+ if(!native&&billing?.trialEligible){const days=Number(billing.trialDays)||30;return `<div class="plan-prompt-body"><p class="eyebrow">${days} DIAS GRÁTIS</p><h2 id="plan-prompt-title">${first?esc(first)+', ganhe':'Ganhe'} ${days} dias grátis</h2><p id="plan-prompt-text">Cadastre seu cartão e use a Mentra completa por ${days} dias. A primeira cobrança só acontece no fim do teste, e você pode cancelar antes sem pagar nada.</p><div class="plan-prompt-actions"><button type="button" class="primary" data-plan-prompt="activate">Quero meus ${days} dias grátis</button><button type="button" class="outline" data-plan-prompt="later">Agora não</button></div></div>`;}
+ if(!native&&billing?.renewalError&&billing?.card)return `<div class="plan-prompt-body"><p class="eyebrow">SEU PLANO</p><h2 id="plan-prompt-title">Não conseguimos renovar seu plano</h2><p id="plan-prompt-text">A cobrança no cartão ${esc(billing.card.brand||'')} •••• ${esc(billing.card.last4)} não foi aprovada (${esc(billing.renewalError)}). Troque o cartão ou pague com PIX para voltar a usar todos os recursos. Seus dados continuam guardados.</p><div class="plan-prompt-actions"><button type="button" class="primary" data-plan-prompt="activate">Atualizar pagamento</button><button type="button" class="outline" data-plan-prompt="later">Agora não</button></div></div>`;
  const title=state==='pending'?`${first?esc(first)+', ative':'Ative'} seu plano para começar`:'Seu plano não está ativo';
  const web={
   pending:'Sua conta já foi criada. Para usar a Mentra por completo, escolha um plano e pague com PIX. A liberação é automática assim que o pagamento é confirmado.',
@@ -39,7 +42,7 @@ export function installPlanPrompt(platform,{doc=globalThis.document,loc=globalTh
  const dialog=doc.createElement('dialog');
  dialog.id='plan-prompt';dialog.className='plan-prompt';
  dialog.setAttribute('aria-labelledby','plan-prompt-title');dialog.setAttribute('aria-describedby','plan-prompt-text');
- dialog.innerHTML=planPromptMarkup({subscription:platform.subscription||{},native,name:platform.user?.name});
+ dialog.innerHTML=planPromptMarkup({subscription:platform.subscription||{},native,name:platform.user?.name,billing:platform.billing});
  dialog.addEventListener('click',event=>{
   // Botões comuns (não um form): o app intercepta envios de formulário globalmente.
   if(event.target===dialog||event.target.closest('[data-plan-prompt="later"]')){dialog.close('later');return;}

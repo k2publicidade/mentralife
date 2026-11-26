@@ -72,9 +72,30 @@ Depois disso, `SIX7PAY_CHECKOUT` foi para `on` em produção.
 - A consulta devolve `establishment.id`. A Mentra só aceita a transação quando ele é igual a `SIX7PAY_ESTABLISHMENT`.
 - `GET /paytime/dashboard/transactions`, que o guia descreve como exclusiva do estabelecimento, também lista transações do estabelecimento **335886**. Reporte esse vazamento à Six7Pay. Por isso a conciliação filtra por `SIX7PAY_ESTABLISHMENT`.
 
+## Cartão de crédito: teste grátis de 30 dias e renovação automática (26/11/2026)
+
+Código em `server/card.mjs`, tela em `dist/card-ui.mjs`, migração `0018_card_trial.sql`. Ligado por `SIX7PAY_CARD=on` (`vars` do Worker).
+
+- **Teste grátis:** conta nova, sem pagamento anterior, cadastra o cartão em Planos e autoriza a renovação automática. Ganha 30 dias (`LEGAL.trialDays`). Um teste por conta, por cartão e por CPF (`trial_claims`, só HMAC, apagado após 2 anos).
+- **Verificação do cartão:** a Six7Pay só devolve o token numa cobrança real. O Worker cobra R$ 1,00 (`CREDIT`, `create_token: true`, `Idempotency-Key: mentra-cv-<id>`) e estorna na hora (`estorno-cv-<id>`). Estorno não confirmado fica `reversal_pending` em `card_verifications` e o cron tenta de novo. Verificação sem resposta é procurada pela referência e estornada se tiver sido aprovada.
+- **Cobrança:** no fim de cada período (2 h antes), o cron cobra o plano pelo token, com o mesmo pedido do PIX (`six7pay_orders.method='card'`). Por isso estorno, arrependimento (7 dias após cada cobrança), retenção após exclusão e /admin valem para o cartão. Preço: promocional no primeiro período pago, regular depois.
+- **Recusa:** novas tentativas em 1, 2 e 3 dias (`renewal_retry_days`). Depois disso para, e a pessoa vê o aviso em Planos e no pop-up. Trocar o cartão ou pagar PIX zera as tentativas.
+- **Cancelar:** Planos ou Meu espaço → Cancelar renovação automática (`POST /api/card/renewal`), ou remover o cartão (`DELETE /api/card`). Nada mais é cobrado; o acesso vai até o fim do período.
+- **Sem direito ao teste** (já pagou antes): "Assinar com cartão" (`POST /api/card` com `plan`) cobra o plano na hora e liga a renovação.
+- **Dados guardados:** token da Six7Pay, bandeira, 4 últimos números, validade e dados do titular exigidos pela bandeira (nome, CPF, telefone, endereço) em `payment_methods`. Número e CVV passam pelo Worker só para a Six7Pay e nunca são gravados nem registrados em log (os testes conferem todas as tabelas).
+- **3DS (antifraude):** desligado. Se o banco exigir autenticação (`analyse_status: WAITING_AUTH`), a pessoa é orientada a usar outro cartão ou PIX. Ligar o 3DS exige SDK e domínio autorizado pela Six7Pay.
+- **Apps das lojas:** não mostram nem cadastram cartão (Apple 3.1.1).
+
+| Variável | Onde | Valor |
+| --- | --- | --- |
+| `SIX7PAY_CARD` | `vars` do Worker | `on` liga o cartão |
+| `CARD_FINGERPRINT_SECRET` | segredo do Worker | chave do HMAC de cartão e CPF (sem ela, usa a chave da Six7Pay) |
+
+**Primeiro teste real:** com um cartão próprio, faça o cadastro do teste grátis em produção. Confira a cobrança de R$ 1,00 e o estorno na fatura e no painel da Six7Pay, e se o cartão aparece em Planos. A primeira renovação real acontece 30 dias depois.
+
 ## Ainda não implementado
 
-- **Cartão de crédito.** Exige que os dados do cartão passem pelo servidor da Mentra, o que traz escopo PCI. O antifraude 3DS depende de SDK e de domínio autorizado pela Six7Pay.
+- **PIX Automático (agendado):** a Six7Pay não oferece. Quem paga por PIX não tem teste grátis.
 - **Boleto.**
 ## Estornos e painel de pagamentos (/admin → Pagamentos)
 

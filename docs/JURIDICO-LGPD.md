@@ -42,7 +42,8 @@ Quem não aceitou a versão nova vê um aviso em Meu espaço e precisa aceitar a
 | Decreto 7.962/2013, art. 2º (identificação) | Bloco "Quem oferece o serviço" em Planos (site e app), no rodapé do site, em Meu espaço → Sobre e contato e nos Termos |
 | Decreto 7.962/2013, art. 4º (resumo e aceite antes de contratar) | Resumo acima do PIX (pagamento único, sem renovação, arrependimento). O PIX só é gerado com os Termos vigentes aceitos (`428`); a versão fica em `six7pay_orders.terms_version` |
 | CDC, art. 49 (arrependimento) | Meu espaço → Desistir da compra. Até 7 dias após a confirmação do pagamento. Gera protocolo `ARR-…` na hora e pede o estorno integral à Six7Pay. Se a Six7Pay não confirmar, o pedido fica `requested` em `withdrawal_requests` e aparece no /admin (Pagamentos); o estorno manual conclui o pedido |
-| Cancelamento e renovação | Não há renovação automática. Meu espaço → Não renovar o plano explica o fim do acesso |
+| Cancelamento e renovação | PIX não renova. Cartão renova automaticamente até a pessoa cancelar (Planos ou Meu espaço → Cancelar renovação automática, efeito imediato, sem multa). O teste grátis de 30 dias exige cartão e autorização expressa da cobrança automática; cancelando antes do fim, nada é cobrado. Ver [PAGAMENTOS-SIX7PAY.md](PAGAMENTOS-SIX7PAY.md) |
+| Dados do cartão | Número e CVV nunca gravados; só token, bandeira, 4 últimos, validade e dados do titular exigidos pela bandeira. Marcadores HMAC de cartão e CPF por 2 anos contra testes repetidos (legítimo interesse, prevenção a fraude) |
 | LGPD, arts. 7º e 11 (bases legais e dados sensíveis) | Aceite dos Termos no cadastro (`users.terms_version`, `consent_log`). Consentimento próprio para Saúde e bem-estar, pedido no primeiro uso e revogável, com botão para apagar os registros |
 | LGPD, art. 33 (transferência internacional, DeepSeek/China) | Consentimento específico antes do primeiro uso da IA. Sem ele, o chat, o áudio, o WhatsApp e o agente Hermes recusam (`428`), e nada é enviado à DeepSeek |
 | LGPD, art. 18 (direitos do titular) | Exportar dados (inclui pedidos, consentimentos e acessos), Apagar meus dados, Excluir minha conta, revogar consentimentos. Canal do encarregado no Aviso |
@@ -81,6 +82,8 @@ Os testes estão em `tests/legal.test.mjs`.
   - Exclusão disponível.
 
 ## Pendências do responsável
+
+- **Cartão e renovação automática (26/11/2026):** Termos 2026-11-26.2 e Aviso 2026-11-26.3 descrevem o teste grátis, a verificação de R$ 1,00 estornada, a renovação e o cancelamento. O advogado deve revisar esses trechos, em especial a cobrança recorrente (dever de informação e cancelamento facilitado) e a retenção dos marcadores HMAC.
 
 - Confirmar com o advogado se a empresa pode ficar sem encarregado nomeado. A dispensa da microempresa não vale para tratamento de alto risco, e o app trata dados de saúde com IA.
 - O CNAE do CNPJ é de produção musical e eventos. Confirme com o contador a inclusão de um CNAE de software ou serviço digital para vender assinaturas e emitir notas.

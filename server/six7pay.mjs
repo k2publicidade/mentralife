@@ -86,7 +86,9 @@ async function activate(db,order,now){
   db.prepare(`INSERT OR IGNORE INTO payment_events(event_id,user_id,payload,created_at)
    SELECT ?,?,json_object('provider','six7pay','order',?,'transaction',?,'status','PAID','amount',CAST(? AS INTEGER),'days',CAST(? AS INTEGER),'promotional',CAST(? AS INTEGER),'periodEnd',current_period_end),? FROM subscriptions WHERE user_id=?`)
    .bind(id,order.user_id,order.id,order.transaction_id,order.amount,daysOf(order),order.promotional?1:0,now,order.user_id),
-  db.prepare(`UPDATE six7pay_orders SET status='paid',paid_at=COALESCE(paid_at,?) WHERE id=?`).bind(now,order.id)
+  db.prepare(`UPDATE six7pay_orders SET status='paid',paid_at=COALESCE(paid_at,?) WHERE id=?`).bind(now,order.id),
+  // Um pagamento confirmado (PIX ou cartão) zera as tentativas de renovação automática.
+  db.prepare('UPDATE subscriptions SET renewal_attempts=0,renewal_next_at=NULL,renewal_error=NULL WHERE user_id=?').bind(order.user_id)
  ]);
 }
 
@@ -285,3 +287,6 @@ export async function six7payReconcile(env){
  for(const row of rows){try{await refresh(env,row,0);}catch{console.warn('six7pay_reconcile_failed',{order:row.id});}}
  try{await watchRefunds(env,now);}catch{console.warn('six7pay_refund_watch_failed');}
 }
+
+// Usado pela cobrança no cartão (server/card.mjs): mesma chamada, conferência e ativação do PIX.
+export const six7payInternals={call,statusOf,transactionId,amountOf,establishmentOf,activate,refresh,load,daysOf,reference,validId,PAID,CLOSED,OPEN};

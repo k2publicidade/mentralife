@@ -17,8 +17,8 @@ export const COMPANY = {
 };
 
 export const LEGAL = {
- termsVersion: '2026-11-26',
- privacyVersion: '2026-11-26.2',
+ termsVersion: '2026-11-26.2',
+ privacyVersion: '2026-11-26.3',
  effectiveDate: '26/11/2026',
  minimumAge: 18,
  withdrawalDays: 7,          // CDC, art. 49
@@ -30,7 +30,10 @@ export const LEGAL = {
  paymentRetentionYears: 5,   // registros fiscais e de pagamento
  accessLogMonths: 6,         // Marco Civil da Internet, art. 15
  technicalRetentionDays: 30,
- backupRetentionDays: 90
+ backupRetentionDays: 90,
+ trialDays: 30,              // teste grátis com cartão vinculado
+ cardVerifyCents: 100,       // verificação do cartão, estornada na hora
+ renewalRetryDays: [1, 2, 3] // novas tentativas após recusa na renovação
 };
 
 export const REQUIRED_COMPANY_FIELDS = {legalName:'nome empresarial',cnpj:'CNPJ',address:'endereço físico',email:'e-mail de atendimento',supportHours:'horário de atendimento'};
@@ -58,10 +61,11 @@ export function legalLinksMarkup(){return `<nav class="legal-links" aria-label="
 
 /** Resumo exibido antes do pagamento (Decreto nº 7.962/2013, art. 4º, I). */
 export function checkoutSummaryMarkup(){
- return `<div class="legal-summary"><p><strong>Antes de pagar:</strong> o pagamento é único, por PIX, e libera os dias do período escolhido. <strong>Não há renovação automática nem cobrança recorrente.</strong> Você pode desistir em até ${LEGAL.withdrawalDays} dias após o pagamento e receber o valor de volta, em Meu espaço → Desistir da compra.</p></div>`;
+ return `<div class="legal-summary"><p><strong>Antes de pagar:</strong> no <strong>PIX</strong>, o pagamento é único, libera os dias do período escolhido e <strong>não renova sozinho</strong>. No <strong>cartão</strong>, a assinatura <strong>renova automaticamente</strong> a cada período, no valor do plano, até você cancelar em Planos ou em Meu espaço; o teste grátis de ${LEGAL.trialDays} dias só cobra no fim do teste. Você pode desistir em até ${LEGAL.withdrawalDays} dias após cada cobrança e receber o valor de volta, em Meu espaço → Desistir da compra.</p></div>`;
 }
 
 const p=text=>`<p>${text}</p>`;
+const brlText=cents=>(cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const ul=items=>`<ul>${items.map(i=>`<li>${i}</li>`).join('')}</ul>`;
 const table=(head,rows)=>`<div class="legal-table-wrap"><table><thead><tr>${head.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>i?`<td>${c}</td>`:`<th scope="row">${c}</th>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
@@ -102,21 +106,23 @@ export function termsSections({company=COMPANY,plans=[]}={}){
  {id:'planos',title:'4. Planos e cobrança',body:[
   p('Há um único plano, com acesso completo a todas as funções, oferecido em três períodos:'),
   planRows.length?table(['Período','Duração','Preço regular','1º pagamento (promoção)'],planRows):'',
-  p('Estes são os preços na data desta versão. O preço que vale para você é sempre o exibido na tela de planos e no PIX antes do pagamento.'),
+  p('Estes são os preços na data desta versão. O preço que vale para você é sempre o exibido na tela de planos antes do pagamento ou da autorização no cartão.'),
   ul([
    '<strong>Incluído:</strong> todas as funções da Mentra e até 2.000 mensagens de IA por mês. A contagem recomeça no dia 1 de cada mês. Áudios têm limites técnicos: até 2 minutos por gravação ou 2 MB por arquivo, além de um limite diário de transcrições.',
    '<strong>Preço promocional:</strong> vale só para quem nunca teve um pagamento confirmado na Mentra, e só no primeiro período contratado. Os pagamentos seguintes custam o preço regular.',
    '<strong>Periodicidade:</strong> cada pagamento libera 30, 90 ou 365 dias, conforme o período escolhido. Os dias começam a contar na confirmação do pagamento. Se você pagar antes de o acesso acabar, os dias se somam ao fim do acesso atual.',
-   '<strong>Renovação:</strong> <strong>não há renovação automática nem cobrança recorrente.</strong> Para continuar depois do fim do período, você faz um novo pagamento.',
-   '<strong>Teste gratuito:</strong> não há teste gratuito.',
-   '<strong>Primeira cobrança:</strong> acontece quando você paga o PIX gerado na tela de planos. O acesso é liberado assim que o pagamento é confirmado. Não guardamos dados bancários nem de cartão.'
+   '<strong>Duas formas de pagar:</strong> PIX, que é um pagamento único e <strong>não renova sozinho</strong>; ou cartão de crédito, que <strong>renova automaticamente</strong> a cada período até você cancelar.',
+   `<strong>Teste grátis de ${LEGAL.trialDays} dias:</strong> para contas novas que cadastram um cartão de crédito e autorizam a renovação automática. Um teste por pessoa, por cartão e por CPF. Durante o teste, nada é cobrado. No fim dos ${LEGAL.trialDays} dias, o plano escolhido é cobrado no cartão (com o preço promocional do primeiro período, quando houver) e renova a cada período. Se você cancelar a renovação antes do fim do teste, nada é cobrado e o acesso termina no último dia do teste.`,
+   `<strong>Verificação do cartão:</strong> para confirmar o cartão, cobramos ${brlText(LEGAL.cardVerifyCents)} e estornamos na mesma hora. O estorno pode levar alguns dias para aparecer na fatura, conforme o banco emissor.`,
+   `<strong>Renovação no cartão:</strong> a cobrança é feita no fim de cada período, no valor do plano exibido em Planos, onde também aparecem a data e o valor da próxima cobrança. Se o cartão recusar, tentamos de novo após ${LEGAL.renewalRetryDays.join(', ').replace(/, (\d+)$/,' e $1')} dias e avisamos no app; sem pagamento, o acesso pago fica suspenso até você trocar o cartão ou pagar com PIX.`,
+   '<strong>Dados do cartão:</strong> o número e o código de segurança seguem com criptografia para a Six7Pay e não são guardados pela Mentra. Guardamos apenas o token da Six7Pay, a bandeira, os 4 últimos números, a validade e os dados do titular exigidos para a cobrança (nome, CPF, telefone e endereço).'
   ]),
-  p('<strong>Onde contratar e gerenciar.</strong> A contratação é feita somente pelo site, em Planos, com PIX processado pela Six7Pay, uma instituição de pagamento. Os aplicativos da App Store e do Google Play não vendem assinaturas, por isso não há nada para gerenciar ou cancelar nessas lojas. A situação do seu acesso, a data de término e os pagamentos aparecem em Planos e em Meu espaço, no site e nos aplicativos.')
+  p('<strong>Onde contratar e gerenciar.</strong> A contratação é feita somente pelo site, em Planos, com PIX ou cartão processados pela Six7Pay, uma instituição de pagamento. Os aplicativos da App Store e do Google Play não vendem assinaturas, por isso não há nada para gerenciar ou cancelar nessas lojas. A situação do seu acesso, a próxima cobrança, a data de término e os pagamentos aparecem em Planos e em Meu espaço.')
  ]},
  {id:'cancelamento',title:'5. Cancelamento e arrependimento',body:[
-  p('<strong>Interromper a renovação.</strong> Como não existe renovação automática, não há nada para cancelar: basta não fazer um novo pagamento. Nenhum valor é cobrado sem que você gere e pague um PIX.'),
+  p('<strong>Cancelar a renovação.</strong> No PIX não há renovação automática: basta não fazer um novo pagamento. No cartão, use Planos ou Meu espaço → <strong>Cancelar renovação automática</strong> (ou remova o cartão) a qualquer momento, sem multa: nada mais é cobrado e o acesso continua até o fim do período já pago ou do teste grátis. O cancelamento vale na hora.'),
   p('<strong>Quando o acesso pago termina.</strong> No último dia do período pago, na data mostrada em Planos e em Meu espaço. Depois disso, seus dados continuam guardados e acessíveis, e só as funções que dependem de plano ficam bloqueadas.'),
-  p(`<strong>Direito de arrependimento (art. 49 do Código de Defesa do Consumidor).</strong> Você pode desistir da contratação em até ${LEGAL.withdrawalDays} dias corridos, contados da confirmação do pagamento, sem precisar justificar. Para isso, use Meu espaço → <strong>Desistir da compra</strong> ou escreva para ${support}. A confirmação do pedido é imediata, com número de protocolo. Pedimos o estorno à Six7Pay na mesma hora, pelo valor integral, para a conta de onde saiu o PIX. Se a instituição de pagamento não confirmar o estorno na hora, nossa equipe conclui o processo em até ${LEGAL.refundBusinessDays} dias úteis. Os dias liberados por esse pagamento são retirados do seu acesso.`),
+  p(`<strong>Direito de arrependimento (art. 49 do Código de Defesa do Consumidor).</strong> Você pode desistir da contratação em até ${LEGAL.withdrawalDays} dias corridos, contados da confirmação de cada pagamento (inclusive a primeira cobrança depois do teste grátis e as renovações no cartão), sem precisar justificar. Para isso, use Meu espaço → <strong>Desistir da compra</strong> ou escreva para ${support}. A confirmação do pedido é imediata, com número de protocolo. Pedimos o estorno à Six7Pay na mesma hora, pelo valor integral, para a conta de onde saiu o PIX ou para o mesmo cartão. Se a instituição de pagamento não confirmar o estorno na hora, nossa equipe conclui o processo em até ${LEGAL.refundBusinessDays} dias úteis. Os dias liberados por esse pagamento são retirados do seu acesso.`),
   p('<strong>Depois do prazo de arrependimento.</strong> O período pago continua disponível até o fim, e não há devolução proporcional pelos dias não usados. Isso não se aplica a cobranças indevidas nem a falhas do serviço, que são tratadas como explicado no item 7.'),
   p('Excluir a conta não substitui o pedido de arrependimento. Se você ainda estiver no prazo e quiser o dinheiro de volta, peça o arrependimento antes de excluir a conta.')
  ]},
@@ -142,7 +148,7 @@ export function termsSections({company=COMPANY,plans=[]}={}){
  ]},
  {id:'alteracoes',title:'8. Alteração dos termos e dos planos',body:[
   p(`Mudanças relevantes nestes Termos, no Aviso de Privacidade, nos preços ou nas condições dos planos são avisadas no app e pelo e-mail da conta com pelo menos ${LEGAL.changeNoticeDays} dias de antecedência. O aviso informa a data em que a mudança passa a valer. Correções de texto e mudanças exigidas por lei ou por motivo de segurança podem valer antes, sempre com aviso.`),
-  p('Uma mudança de preço ou de condições nunca altera um período que já foi pago. Como não há renovação automática, o novo preço só se aplica se você decidir fazer um novo pagamento depois da data informada, e não fazer o pagamento basta para não aderir. Se não concordar com os novos Termos, você pode exportar seus dados e excluir a conta a qualquer momento. Quando necessário, pediremos um novo aceite no app.')
+  p('Uma mudança de preço ou de condições nunca altera um período que já foi pago. No PIX, o novo preço só se aplica se você decidir fazer um novo pagamento depois da data informada. No cartão, a renovação só passa a usar o novo preço depois do aviso; se não concordar, cancele a renovação antes da data informada, sem custo. Se não concordar com os novos Termos, você pode exportar seus dados e excluir a conta a qualquer momento. Quando necessário, pediremos um novo aceite no app.')
  ]},
  {id:'geral',title:'9. Disponibilidade, responsabilidade e lei aplicável',body:[
   p('Trabalhamos para manter o serviço disponível e seguro. Mesmo assim, ele pode ficar indisponível por manutenção, falhas de fornecedores ou da sua conexão. Mantenha cópias dos documentos importantes. A Mentra é uma ferramenta de organização e não presta serviço médico, financeiro ou jurídico.'),
@@ -166,13 +172,15 @@ export function privacySections({company=COMPANY}={}){
    ['Conteúdo que você insere: anotações, tarefas, agenda, finanças, documentos e fotos, conversas e memória da IA (opcional)','Guardar, sincronizar e exibir para você','Execução de contrato (art. 7º, V)'],
    ['Dados de saúde e bem-estar que você registrar, como consultas, medicamentos, sono e disposição','Organizar e exibir esses registros apenas para você','Consentimento específico e destacado (art. 11, I), pedido na primeira vez que você usa a área de saúde'],
    ['Perguntas, áudios e o contexto enviado à Mentra IA','Gerar respostas e executar as ações pedidas','Execução de contrato e consentimento específico para a transferência internacional (art. 33, VIII)'],
-   ['Pagamentos: plano, valor, datas, situação e identificador da transação PIX','Liberar o acesso, conciliar, estornar e cumprir obrigações fiscais','Execução de contrato e obrigação legal (art. 7º, II e V)'],
+   ['Pagamentos: plano, valor, datas, situação e identificador da transação (PIX ou cartão)','Liberar o acesso, conciliar, estornar e cumprir obrigações fiscais','Execução de contrato e obrigação legal (art. 7º, II e V)'],
+   ['Cartão de crédito: token da Six7Pay, bandeira, 4 últimos números, validade e dados do titular exigidos pela bandeira (nome, CPF, telefone e endereço). O número completo e o código de segurança não são guardados','Verificar o cartão, cobrar a renovação automática que você autorizou e evitar fraude','Execução de contrato (art. 7º, V)'],
+   ['Marcadores do teste grátis: código irreversível (HMAC) do cartão e do CPF, sem dado legível','Impedir que o mesmo cartão ou CPF use o teste grátis mais de uma vez','Legítimo interesse (art. 7º, IX), prevenção a fraude'],
    ['Registros de acesso: endereço IP, data e hora de entrada na conta','Segurança e cumprimento do Marco Civil da Internet','Obrigação legal (art. 7º, II; Marco Civil, art. 15)'],
    ['Integrações opcionais: número de WhatsApp, autorização do Google Agenda e identificadores de aparelho para notificações','Fazer funcionar a integração que você ativou','Execução de contrato (art. 7º, V)'],
    ['Registros técnicos: limites de uso, contagem de mensagens de IA e eventos de segurança da conta','Prevenir fraude e abuso e manter o serviço','Legítimo interesse (art. 7º, IX) e execução de contrato']
   ]),
   p('Não usamos seus dados para publicidade, não vendemos dados e não criamos perfis para terceiros. Não usamos cookies de rastreamento: o único cookie é o de sessão, necessário para manter você conectado.'),
-  p('<strong>O que não vai para a IA.</strong> Dados de saúde, documentos originais, senhas e credenciais nunca são enviados à IA. A IA recebe somente a pergunta e um recorte da sua organização necessário para responder, como compromissos, tarefas, totais financeiros e nomes de contas.')
+  p('<strong>O que vai e o que não vai para a IA.</strong> A IA recebe a pergunta e um recorte da sua organização necessário para responder, como compromissos, tarefas, totais financeiros e nomes de contas. Fotos e PDFs só vão quando você mesmo os anexa na conversa ou manda pelo WhatsApp. Dados de saúde, documentos guardados na Biblioteca, senhas, dados de cartão e credenciais nunca são enviados à IA.')
  ]},
  {id:'fornecedores',title:'3. Fornecedores e transferência internacional',body:[
   p('Compartilhamos dados apenas com fornecedores que operam o serviço em nosso nome, cada um limitado à sua função:'),
@@ -180,7 +188,7 @@ export function privacySections({company=COMPANY}={}){
    ['Cloudflare','Servidores da aplicação, banco de dados, transcrição de áudio (Workers AI)','Estados Unidos e rede global'],
    ['Vercel','Hospedagem do site','Estados Unidos e rede global'],
    ['DeepSeek','Geração das respostas da Mentra IA e leitura das fotos e PDFs que você anexa (arquivos de PDF escaneado são apagados da DeepSeek logo após a leitura)','China'],
-   ['Six7Pay (Paytime)','Processamento do PIX e de estornos','Brasil'],
+   ['Six7Pay (Paytime)','Processamento do PIX, do cartão de crédito (verificação, cobranças e renovação automática) e de estornos','Brasil'],
    ['Google','Google Agenda (se conectado) e notificações no Android (Firebase Cloud Messaging)','Estados Unidos'],
    ['Apple','Notificações no iOS (APNs)','Estados Unidos'],
    ['WhatsApp (Meta) e servidor de integração da Mentra','Conversa pelo WhatsApp, se você vincular seu número','Estados Unidos e servidor contratado pela Mentra']
@@ -195,6 +203,8 @@ export function privacySections({company=COMPANY}={}){
    `Registros técnicos (pedidos de IA, transcrições, filas de integração e lembretes enviados): até ${LEGAL.technicalRetentionDays} dias.`,
    `Registros de acesso (IP, data e hora): ${LEGAL.accessLogMonths} meses, como exige o art. 15 do Marco Civil da Internet, mesmo depois da exclusão da conta.`,
    `Registros de pagamento: ${LEGAL.paymentRetentionYears} anos após o fim do ano do pagamento, por obrigação fiscal e para defesa em processos (LGPD, art. 16, I), mesmo depois da exclusão da conta. Ficam guardados à parte, só com nome, e-mail, valor, plano, datas e identificador da transação.`,
+   'Cartão: enquanto estiver cadastrado. Remover o cartão ou excluir a conta apaga o token e os dados do titular na hora.',
+   'Marcadores do teste grátis (HMAC do cartão e do CPF): 2 anos, mesmo depois da exclusão da conta.',
    'Sessões: até 7 dias, ou até você sair da conta ou trocar a senha.'
   ])
  ]},
