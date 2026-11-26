@@ -222,9 +222,13 @@ async def _read_media(event, gateway, source, who: dict):
     """Fotos e PDFs: manda ler no backend e troca o anexo pelo texto encontrado. O Hermes não
     precisa de modelo de visão; áudios e vídeos seguem o caminho normal dele."""
     urls = list(getattr(event, "media_urls", None) or [])
-    if not urls:
-        return None
     types = list(getattr(event, "media_types", None) or [])
+    if not urls:
+        if getattr(event, "message_type", None) is not None and str(getattr(event, "message_type", "")).lower().endswith(("photo", "document")):
+            log.warning("mentra arquivo sem caminho: tipo=%s texto=%r", getattr(event, "message_type", ""), str(getattr(event, "text", ""))[:80])
+        return None
+    log.info("mentra recebeu %d arquivo(s): %s", len(urls), ", ".join(
+        f"{types[i] if i < len(types) else '?'} existe={Path(str(u)).is_file()}" for i, u in enumerate(urls[:3])))
     handled, notes, last = [], [], None
     for index, path in enumerate(urls[:3]):
         mime = types[index] if index < len(types) else ""
@@ -232,6 +236,11 @@ async def _read_media(event, gateway, source, who: dict):
             continue
         item = await asyncio.to_thread(_prepare_file, str(path))
         if not item:
+            # Antes o arquivo era ignorado em silêncio. Agora a pessoa sabe o que mandar.
+            log.warning("mentra nao abriu o arquivo %s (tipo %s)", path, mime or "?")
+            handled.append(index)
+            notes.append(f"{MEDIA_MARK}: um arquivo que não pôde ser aberto (formato {mime or 'desconhecido'}). "
+                         "Explique que a Mentra lê fotos (JPEG, PNG ou WebP) e PDFs e peça para enviar de novo nesse formato. Não invente o conteúdo.]")
             continue
         handled.append(index)
         label = "um PDF" if item["kind"] == "pdf" else "uma foto"
@@ -243,6 +252,7 @@ async def _read_media(event, gateway, source, who: dict):
                 await gateway.adapters[source.platform].send(source.chat_id, "Recebi o arquivo, estou lendo. 📄")
             except Exception:
                 pass
+        log.info("mentra lendo %s (%d bytes)", item["kind"], len(item["read"]))
         try:
             result = await asyncio.to_thread(_call, {
                 "event": "read", "id": str(getattr(event, "message_id", "") or uuid.uuid4()) + f":{index}",
@@ -251,6 +261,7 @@ async def _read_media(event, gateway, source, who: dict):
             log.warning("mentra leitura de arquivo falhou: %s", error)
             result = {"error": "a leitura está indisponível agora"}
         text = str(result.get("text") or "").strip()
+        log.info("mentra leitura: %s", f"{len(text)} caracteres" if text else f"falhou ({result.get('error')})")
         if not text:
             notes.append(f"{MEDIA_MARK}: {label}, mas não foi possível ler o conteúdo ({result.get('error') or 'sem texto legível'}). "
                          "Peça uma foto mais nítida ou os dados por texto. Não invente o conteúdo.]")
