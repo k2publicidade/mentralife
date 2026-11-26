@@ -1,5 +1,5 @@
 name: mentra
-version: 1.1.0
+version: 1.2.0
 description: Liga o WhatsApp do Hermes às contas individuais da Mentra (identidade, dados e ações por pessoa).
 provides_tools:
   - consultar_mentra

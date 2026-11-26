@@ -18,7 +18,7 @@ export const COMPANY = {
 
 export const LEGAL = {
  termsVersion: '2026-11-26',
- privacyVersion: '2026-11-26',
+ privacyVersion: '2026-11-26.2',
  effectiveDate: '26/11/2026',
  minimumAge: 18,
  withdrawalDays: 7,          // CDC, art. 49
@@ -83,7 +83,7 @@ export function termsSections({company=COMPANY,plans=[]}={}){
    ['Agenda da Mentra','Não para consultar a cópia do aparelho. Sim para sincronizar','Não','Não'],
    ['Lembretes por notificação','Sim','Serviços de notificação do navegador, Google (Android) ou Apple (iOS)','Sim'],
    ['Finanças e saúde e bem-estar (organização pessoal)','Não para consultar a cópia do aparelho. Sim para sincronizar','Não','Não'],
-   ['Mentra IA (texto e áudio)','Sim','DeepSeek (respostas), Cloudflare (transcrição de áudio)','Sim'],
+   ['Mentra IA (texto, áudio, fotos e PDFs)','Sim','DeepSeek (respostas e leitura das fotos e PDFs que você anexa), Cloudflare (transcrição de áudio e leitura de PDFs)','Sim'],
    ['Importação do Google Agenda (opcional)','Sim','Google','Não'],
    ['Conversa pelo WhatsApp (opcional)','Sim','WhatsApp (Meta)','Sim']
   ]),
@@ -179,7 +179,7 @@ export function privacySections({company=COMPANY}={}){
   table(['Fornecedor','Função','Local'],[
    ['Cloudflare','Servidores da aplicação, banco de dados, transcrição de áudio (Workers AI)','Estados Unidos e rede global'],
    ['Vercel','Hospedagem do site','Estados Unidos e rede global'],
-   ['DeepSeek','Geração das respostas da Mentra IA','China'],
+   ['DeepSeek','Geração das respostas da Mentra IA e leitura das fotos e PDFs que você anexa (arquivos de PDF escaneado são apagados da DeepSeek logo após a leitura)','China'],
    ['Six7Pay (Paytime)','Processamento do PIX e de estornos','Brasil'],
    ['Google','Google Agenda (se conectado) e notificações no Android (Firebase Cloud Messaging)','Estados Unidos'],
    ['Apple','Notificações no iOS (APNs)','Estados Unidos'],

@@ -60,7 +60,7 @@ export function prepareActions(saved,user,calls,requestId,channel,{attachment}={
    if(name==='save_document'){
     if(state.documents.some(d=>!d.trashed&&d.sha256===attachment.upload.sha256))throw Error('Este arquivo já está guardado nos documentos da conta.');
     const future=args.importantDate!==null&&args.importantDate>today,metadata=validateDocumentMetadata({title:args.title,note:args.note??'',context:'personal',area:args.area,category:args.category,importantDate:args.importantDate??'',remind:future,remindDaysBefore:future?7:0});
-    item={id:crypto.randomUUID(),...metadata,date:today,createdAt:new Date().toISOString(),trashed:false,favorite:false,source:'mentra',...attachment.upload,originalName:attachment.originalName,...(attachment.text?{extractedText:attachment.text,extraction:{method:'whatsapp',pages:null,totalPages:null,startPage:null,endPage:null,partial:false,reviewedAt:null}}:{})};
+    item={id:crypto.randomUUID(),...metadata,date:today,createdAt:new Date().toISOString(),trashed:false,favorite:false,source:'mentra',...attachment.upload,originalName:attachment.originalName,...(attachment.text?{extractedText:attachment.text,extraction:{method:channel==='whatsapp'?'whatsapp':'mentra-ia',pages:null,totalPages:null,startPage:null,endPage:null,partial:false,reviewedAt:null}}:{})};
     state.documents.unshift(item);collection='documents';route='arquivos/documentos';extra={area:AREAS[metadata.area].label};
    }
   }catch(error){problem(error.message+' Nenhum registro deste pedido foi criado.',422);}
