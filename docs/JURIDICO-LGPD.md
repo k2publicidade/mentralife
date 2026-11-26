@@ -20,7 +20,13 @@ As páginas públicas são geradas com `node scripts/legal-pages.mjs`:
 
 `npm run check`, `npm run build:vercel` e o teste `tests/legal.test.mjs` falham se as páginas estiverem desatualizadas.
 
-**Antes de publicar, preencha `COMPANY`.** `build:vercel` recusa publicar sem nome empresarial, CNPJ, endereço, e-mail, telefone e horário. Para publicar mesmo assim, `MENTRA_ALLOW_LEGAL_DRAFT=1` libera o build; os campos vazios simplesmente não aparecem. Em 26/11/2026 a produção foi publicada assim, só com a marca e o e-mail, porque os dados da empresa ainda não tinham sido informados. O domínio está registrado em nome de pessoa física (CPF), sem CNPJ.
+`COMPANY` traz os dados do cartão CNPJ da Nexo Entretenimento e Eventos Culturais Ltda (68.825.713/0001-28), que oferece a Mentra Life.
+
+- **Atendimento:** pelo e-mail contato@mentralife.com.br, todos os dias, 24 horas, de forma automatizada.
+- **Telefone:** não é publicado. O Decreto 7.962/2013 exige endereço físico e eletrônico, e o telefone do cartão CNPJ é do contador.
+- **Encarregado:** não há um nomeado. O canal do titular é o mesmo e-mail, com base na dispensa para microempresas (Resolução CD/ANPD nº 2/2022).
+
+`build:vercel` recusa publicar sem nome empresarial, CNPJ, endereço, e-mail e horário. `MENTRA_ALLOW_LEGAL_DRAFT=1` libera o build mesmo assim, só para testes. O domínio continua registrado em nome de pessoa física (CPF); vale transferi-lo para o CNPJ.
 
 Ao mudar um texto de forma relevante:
 1. Troque `termsVersion` ou `privacyVersion` e `effectiveDate`.
@@ -76,7 +82,9 @@ Os testes estão em `tests/legal.test.mjs`.
 
 ## Pendências do responsável
 
-- Dados reais em `COMPANY` e o nome do encarregado.
+- Confirmar com o advogado se a empresa pode ficar sem encarregado nomeado. A dispensa da microempresa não vale para tratamento de alto risco, e o app trata dados de saúde com IA.
+- O CNAE do CNPJ é de produção musical e eventos. Confirme com o contador a inclusão de um CNAE de software ou serviço digital para vender assinaturas e emitir notas.
+- Confirmar que contato@mentralife.com.br recebe mensagens e responde automaticamente, como os Termos prometem.
 - Revisão jurídica dos textos.
 - Confirmar ou ajustar os parâmetros em `LEGAL`:
   - idade mínima de 18 anos;
