@@ -94,3 +94,17 @@ body:has(.platform-toolbar) .workspace .top-actions .demo-indicator{display:none
 }
 /* Cartões de "Mais áreas" com a mesma altura, mesmo quando um nome quebra em duas linhas. */
 .workspace :is(.menu-grid,.menu-cards){grid-auto-rows:1fr}
+
+/* Terceira rodada da revisão crítica. */
+/* Títulos dentro de cartões usam a mesma serifada dos demais títulos (antes: Outfit negrito ao lado de Fraunces). */
+.workspace .card h2{font-family:var(--serif);font-weight:400;letter-spacing:-.01em}
+.workspace .card .section-head h2{font-size:23px;line-height:1.2}
+/* "Atenção hoje" ocupa a altura do que tem a dizer, em vez de esticar até a do cartão vizinho. */
+.workspace .home-productivity{align-items:start}
+@media(min-width:761px){
+ /* Ações do título em uma linha sob o título, que passa a ter a largura toda. */
+ .workspace .page-heading:has(>.button-row){flex-wrap:wrap}
+ .workspace .page-heading>.button-row{flex:0 0 100%;width:100%;max-width:none;justify-content:flex-start}
+ /* No desktop a barra lateral já lista as nove áreas principais: "Mais áreas" mostra só o que falta nela. */
+ .workspace .menu-grid>.menu-card:nth-child(-n+9){display:none}
+}

@@ -33,3 +33,12 @@
 }
 @keyframes motion-dialog{from{opacity:0;transform:scale(.97)}}
 @keyframes motion-open{from{opacity:0;transform:translateY(-4px)}}
+
+/* 7. A barra lateral é navegação fixa: fica parada nas trocas de tela, como a barra superior
+      e a barra inferior do celular. Antes ela encolhia e esmaecia junto com o conteúdo. */
+html[data-nav] .sidebar{view-transition-name:mentra-sidebar}
+@media(prefers-reduced-motion:no-preference){
+ ::view-transition-group(mentra-sidebar){animation:none}
+ ::view-transition-old(mentra-sidebar){display:none}
+ ::view-transition-new(mentra-sidebar){animation:none}
+}
